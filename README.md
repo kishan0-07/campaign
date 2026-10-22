@@ -1,4 +1,5 @@
 <div align ="center">
+
 # Campaign Contact Prioritization
 
 ### A reproducible machine-learning workflow for ranking historical bank-marketing records under a fixed contact budget
@@ -20,6 +21,7 @@
 **Project status:** Completed offline learning mini-project · [fixed final evaluation recorded](#final-evaluation-of-the-fixed-forest) · [saved-model CLI verified](#verification)
 
 [Setup](#environment-and-installation) · [Run predictions](#run-predictions) · [Architecture](#architecture-and-project-files) · [Results and findings](#recorded-results-and-interpretation) · [MLflow and saved model](#mlflow-tracking-and-saved-model) · [Verification](#verification)
+
 </div>
 A Python machine-learning mini-project that ranks bank-marketing records by estimated subscription probability and selects the highest-ranked **10% of each submitted batch**. It demonstrates data validation, leakage-aware preprocessing, model comparison, ordered validation, experiment tracking, model persistence and prediction from a separate command-line process.
 
