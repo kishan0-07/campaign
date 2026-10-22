@@ -1,4 +1,4 @@
-<div align ="center">
+<div align="center">
 
 # Campaign Contact Prioritization
 
@@ -23,6 +23,7 @@
 [Setup](#environment-and-installation) · [Run predictions](#run-predictions) · [Architecture](#architecture-and-project-files) · [Results and findings](#recorded-results-and-interpretation) · [MLflow and saved model](#mlflow-tracking-and-saved-model) · [Verification](#verification)
 
 </div>
+
 A Python machine-learning mini-project that ranks bank-marketing records by estimated subscription probability and selects the highest-ranked **10% of each submitted batch**. It demonstrates data validation, leakage-aware preprocessing, model comparison, ordered validation, experiment tracking, model persistence and prediction from a separate command-line process.
 
 **Recorded outcome:** the selected random forest found **291 historical subscribers among 617 selected records** in the final cohort: **47.16% precision**, **12.25% recall** and **1.23 lift**. A uniformly random shortlist of the same size would contain **237.25 subscribers on average** in that cohort. The model's shortlist therefore contained **22.65% more historical subscribers than the random expectation—about 23% more**, at the same contact budget. This supports a modest historical ranking benefit; it does not establish additional subscriptions caused by calling, profitability or production readiness.
@@ -71,22 +72,49 @@ There are no invented contact costs or revenues. This is an observational predic
 
 The notebook coordinates the experiment. Small shared modules implement the input contract, sklearn pipeline factory, ranking policy and saved-model loading. Training uses standard sklearn APIs rather than a custom estimator or training framework.
 
-```text
-Historical source CSV
-  -> validate and assign row IDs
-  -> ordered train / development / final partitions
-       train -> fit preprocessing + four sklearn candidates
-       development -> compare candidates and inspect the chosen one
-       chosen fitted pipeline -> MLflow model + selection.json
-       final -> evaluate the fixed decision once -> final_result.json
+### Experiment and model persistence
 
-Prediction CSV, without labels
-  -> prepare_inputs
-  -> load_selected from the existing MLflow store
-  -> predict_proba / positive-class lookup
-  -> whole-batch ranking and budget
-  -> ranked output CSV
+```mermaid
+flowchart TD
+    Source["Historical source CSV"] --> Split["Validate, assign IDs and split in order"]
+    Split --> Train["Train: 28,831 records"]
+    Split --> Dev["Development: 6,178 records"]
+    Split --> Holdout["Final: 6,179 records"]
+    Train --> Fit["Fit four fresh sklearn pipelines"]
+    Fit --> Compare["Score and compare on development"]
+    Dev --> Compare
+    Compare --> Choose["Choose an existing fitted pipeline"]
+    Choose --> Save["Log the pipeline without refitting"]
+    Save --> Store[("MLflow tracking store")]
+    Save --> Selection["results/selection.json"]
+    Selection --> Access["Record final access before opening labels"]
+    Access --> Final["Evaluate the fixed saved model once"]
+    Holdout --> Final
+    Store --> Final
+    Final --> Report["results/final_result.json"]
 ```
+
+Only training records fit the candidate pipelines. Development results choose the saved predictor; final results do not feed back into selection. The tracking store consists of SQLite metadata and separate artifact files. The permanent final-access marker is created before final labels are opened.
+
+### Saved-model batch prediction
+
+```mermaid
+flowchart TD
+    Input["Label-free prediction CSV"] --> Prepare["prepare_inputs: validate eight features and IDs"]
+    Selection["results/selection.json"] --> Load["load_selected: load the fitted pipeline"]
+    State[("MLflow SQLite and model artifacts")] --> Load
+    Prepare --> Scores["positive_scores: class-1 probabilities"]
+    Load --> Scores
+    Scores --> Rank["Sort score descending, numeric ID ascending"]
+    Prepare -->|Record IDs| Rank
+    Selection -->|Saved ranking policy| Rank
+    Rank --> Budget["Select floor(batch size / 10) records"]
+    Budget --> Output["CSV with IDs, probabilities, ranks and selections"]
+```
+
+The CLI reuses the existing model and ranks the entire submitted batch. It never trains or reads labels. These diagrams use Mermaid and render in [GitHub's Markdown view](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams#creating-mermaid-diagrams); a local editor needs Mermaid preview support to display them as diagrams.
+
+### Project layout
 
 ```text
 campaign-mini/
@@ -150,19 +178,24 @@ MLflow state is stored **outside the repository**. The database holds experiment
 
 The checked environment is Windows with PowerShell. Run project commands from the repository root, currently `D:\campaign-mini`. Other operating systems have not been verified; the default tracking location uses Windows `LOCALAPPDATA`.
 
-Install [uv using its official instructions](https://docs.astral.sh/uv/getting-started/installation/). For an existing checkout:
+Install [uv using its official instructions](https://docs.astral.sh/uv/getting-started/installation/). Open PowerShell in the project root. For the current local checkout:
 
 ```powershell
 Set-Location D:\campaign-mini
-uv lock --check
-uv sync --locked
 ```
 
-For a separate checkout, clone into a new directory and then run those same lock/sync commands:
+Alternatively, create a separate checkout in a new directory:
 
 ```powershell
 git clone https://github.com/kishan0-07/campaign.git campaign-mini
 Set-Location campaign-mini
+```
+
+From whichever project root you chose, check and install the locked dependencies:
+
+```powershell
+uv lock --check
+uv sync --locked
 ```
 
 **Cloning the source does not restore the external MLflow database or model artifacts.** Tests use their own temporary stores, but prediction with the recorded selection requires the original tracking state or a deliberately migrated and verified copy. See [MLflow tracking and saved model](#mlflow-tracking-and-saved-model).
@@ -237,7 +270,7 @@ The restricted feature set defines this mini-project's scope. In particular, the
 
 The notebook and CLI use the same `prepare_inputs` function:
 
-- Require `record_id` and all eight features; reject duplicate column names and invalid or duplicate IDs. IDs must parse as integers without missing values.
+- Require `record_id` and all eight features; reject duplicate DataFrame column names and invalid or duplicate IDs. IDs must parse as integers without missing values.
 - Trim whitespace. Treat blanks and actual missing values as missing, preserving literal categorical strings such as `unknown` and `NA`.
 - Convert valid numerical values to floating point. Reject nonmissing invalid numerical text, infinity and negative values. Missing numerical values are allowed for imputation.
 - Keep previously unseen categorical strings; the fitted encoder handles them without refitting.
@@ -576,7 +609,7 @@ uv sync --locked
 uv run --locked python -m pytest -q
 ```
 
-Fresh documentation-time verification on **23 October 2026** confirmed the lock check and **62 passing tests** in **21.13 seconds**, with one MLflow/SQLAlchemy `SADeprecationWarning` about the deprecated `noload` strategy. The warning did not fail the checks and is not being presented as a project-code fix. Prediction and MLflow UI command-line options were also checked with `--help`.
+Recorded verification on **23 October 2026** confirmed the lock check and **62 passing tests** in **21.13 seconds**, with one MLflow/SQLAlchemy `SADeprecationWarning` about the deprecated `noload` strategy. The warning did not fail the checks and is not being presented as a project-code fix. Prediction and MLflow UI command-line options were also checked with `--help`.
 
 Tests cover:
 
@@ -600,7 +633,14 @@ The saved experiment also records an H/I check that notebook and CLI probabiliti
 6. **Uncertainty and fairness.** There is no justified dependence-aware confidence interval, and sparse subgroup summaries do not establish fairness. The error examples are illustrative.
 7. **Operational scope.** This is a local offline batch workflow. It has not been validated as a deployed multi-user service, with monitoring or a tested model-store migration.
 
-**Optional follow-up experiments:** compare a simple previous-campaign-outcome rule at the same contact budget; backtest the forest across chronological windows using precision at budget, lift and AP; verify prediction-time field availability/customer identity; and investigate recent-history training or a separate later calibration window as hypotheses. These are not guaranteed fixes or unfinished requirements for this mini-project. Any resulting changes need assessment on a **new untouched cohort**. Do not tune against this completed final set and report it as new final evidence.
+**Optional follow-up experiments:**
+
+- Compare a simple previous-campaign-outcome rule at the same contact budget.
+- Backtest the forest across chronological windows using precision at budget, lift and AP.
+- Verify prediction-time field availability and customer identity where additional source information is available.
+- Investigate recent-history training or a separate later calibration window as hypotheses.
+
+These are not guaranteed fixes or unfinished requirements for this mini-project. Any resulting changes need assessment on a **new untouched cohort**. Do not tune against this completed final set and report it as new final evidence.
 
 ## Troubleshooting
 
