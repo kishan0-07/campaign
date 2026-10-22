@@ -1,0 +1,83 @@
+{
+  "evaluated_at_utc": "2026-10-22T21:15:33.091924+00:00",
+  "selection": {
+    "candidate_id": "rf_d8",
+    "run_id": "15d21d7a28614c839df9ceb1f27c7fda",
+    "model_uri": "models:/m-f39e8303606c40b68cdd25dffa3bc9d6",
+    "state_dir": "C:\\Users\\KISHAN PRAJAPATI\\AppData\\Local\\campaign-mini-state",
+    "features": [
+      "age",
+      "previous",
+      "job",
+      "marital",
+      "education",
+      "housing",
+      "loan",
+      "poutcome"
+    ],
+    "policy": {
+      "budget_numerator": 1,
+      "budget_denominator": 10,
+      "tie_break": "record_id_ascending"
+    }
+  },
+  "source": {
+    "file": "data/raw/bank-additional-full.csv",
+    "sha256": "74adfc578bf77a7ff4bb1ba4a9f8709d9e3c6907342959c2c8416847e0afb4d8",
+    "source_n": 41188,
+    "final_first_record_id": 35009,
+    "final_last_record_id": 41187
+  },
+  "development_metrics": {
+    "n": 6178,
+    "k": 617,
+    "positives": 658,
+    "tp": 151,
+    "fp": 466,
+    "fn": 507,
+    "tn": 5054,
+    "precision_at_budget": 0.24473257698541329,
+    "recall_at_budget": 0.22948328267477203,
+    "lift": 2.2978082988083335,
+    "ap": 0.1827122319843029,
+    "brier": 0.09553539796707916,
+    "log_loss": 0.34521310390385734,
+    "undefined": {},
+    "random_reference": {
+      "expected_tp": 65.71479443185497,
+      "expected_precision": 0.10650696018128844,
+      "expected_recall": 0.09987050825509873,
+      "expected_lift": 1.0,
+      "undefined": {}
+    }
+  },
+  "metrics": {
+    "n": 6179,
+    "k": 617,
+    "positives": 2376,
+    "tp": 291,
+    "fp": 326,
+    "fn": 2085,
+    "tn": 3477,
+    "precision_at_budget": 0.47163695299837927,
+    "recall_at_budget": 0.12247474747474747,
+    "lift": 1.2265339783573173,
+    "ap": 0.46753997970270367,
+    "brier": 0.3164162204087372,
+    "log_loss": 0.9850038115284846,
+    "undefined": {},
+    "random_reference": {
+      "expected_tp": 237.2539245832659,
+      "expected_precision": 0.38452824081566594,
+      "expected_recall": 0.0998543453633274,
+      "expected_lift": 1.0,
+      "undefined": {}
+    }
+  },
+  "limitations": [
+    "Historical subscription ranking, not causal uplift or guaranteed campaign profit.",
+    "Ordered holdout; customer-disjointness and exact prediction-time availability are unverified.",
+    "One later historical cohort; future performance and calibrated probabilities are not guaranteed.",
+    "No justified dependence model or confidence interval was established for this ordered cohort."
+  ]
+}
