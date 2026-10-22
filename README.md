@@ -1,3 +1,4 @@
+<div align ="center">
 # Campaign Contact Prioritization
 
 ### A reproducible machine-learning workflow for ranking historical bank-marketing records under a fixed contact budget
@@ -19,7 +20,7 @@
 **Project status:** Completed offline learning mini-project · [fixed final evaluation recorded](#final-evaluation-of-the-fixed-forest) · [saved-model CLI verified](#verification)
 
 [Setup](#environment-and-installation) · [Run predictions](#run-predictions) · [Architecture](#architecture-and-project-files) · [Results and findings](#recorded-results-and-interpretation) · [MLflow and saved model](#mlflow-tracking-and-saved-model) · [Verification](#verification)
-
+</div>
 A Python machine-learning mini-project that ranks bank-marketing records by estimated subscription probability and selects the highest-ranked **10% of each submitted batch**. It demonstrates data validation, leakage-aware preprocessing, model comparison, ordered validation, experiment tracking, model persistence and prediction from a separate command-line process.
 
 **Recorded outcome:** the selected random forest found **291 historical subscribers among 617 selected records** in the final cohort: **47.16% precision**, **12.25% recall** and **1.23 lift**. A uniformly random shortlist of the same size would contain **237.25 subscribers on average** in that cohort. The model's shortlist therefore contained **22.65% more historical subscribers than the random expectation—about 23% more**, at the same contact budget. This supports a modest historical ranking benefit; it does not establish additional subscriptions caused by calling, profitability or production readiness.
