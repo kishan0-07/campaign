@@ -1,7 +1,7 @@
 {
   "candidate_id": "rf_d8",
-  "run_id": "c9fcbce59ba54e7fbe05f3528d3be9fa",
-  "model_uri": "models:/m-be221588588546b3a6e90280627527e3",
+  "run_id": "15d21d7a28614c839df9ceb1f27c7fda",
+  "model_uri": "models:/m-f39e8303606c40b68cdd25dffa3bc9d6",
   "state_dir": "C:\\Users\\KISHAN PRAJAPATI\\AppData\\Local\\campaign-mini-state",
   "features": [
     "age",

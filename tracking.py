@@ -1,33 +1,28 @@
+import json
 import os
 from pathlib import Path
-from helpers import FEATURES
-import json
 import mlflow
+import mlflow.sklearn
+from helpers import FEATURES
 
-def configure_tracking(state_dir=None, allow_create=True):
+
+def configure_tracking(state_dir=None, *, allow_create=True):
     if state_dir is None:
         state_dir = Path(os.environ["LOCALAPPDATA"]) / "campaign-mini-state"
-
-    state = Path(state_dir).resolve()
-    database = state / "mlflow.db"
-    artifacts = state / "artifacts"
-
+    state_dir = Path(state_dir).expanduser().resolve()
+    database = state_dir / "mlflow.db"
+    artifacts = state_dir / "artifacts"
     if allow_create:
-        state.mkdir(parents=True, exist_ok=True)
-        artifacts.mkdir(exist_ok=True)
+        artifacts.mkdir(parents=True, exist_ok=True)
     elif not database.is_file() or not artifacts.is_dir():
-        raise FileNotFoundError("The selected MLflow store is missing")
-
+        raise FileNotFoundError(f"Existing mlflow.db and artifacts/ are required in {state_dir}")
     tracking_uri = "sqlite:///" + database.as_posix()
     mlflow.set_tracking_uri(tracking_uri)
-
-    return {
-        "state_dir": str(state),
-        "tracking_uri": tracking_uri,
-        "artifact_uri": artifacts.as_uri(),
-    }
+    return {"state_dir": str(state_dir), "tracking_uri": tracking_uri,
+            "artifact_uri": artifacts.as_uri()}
 
 def load_selected(selection_path):
+    """Load our own saved native sklearn pipeline and its decision record."""
     selection = json.loads(Path(selection_path).read_text(encoding="utf-8"))
     if selection["features"] != FEATURES:
         raise ValueError("Saved features do not match helpers.FEATURES")
