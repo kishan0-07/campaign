@@ -1,7 +1,9 @@
 import os
 from pathlib import Path
-
+from helpers import FEATURES
+import json
 import mlflow
+
 def configure_tracking(state_dir=None, allow_create=True):
     if state_dir is None:
         state_dir = Path(os.environ["LOCALAPPDATA"]) / "campaign-mini-state"
@@ -24,3 +26,11 @@ def configure_tracking(state_dir=None, allow_create=True):
         "tracking_uri": tracking_uri,
         "artifact_uri": artifacts.as_uri(),
     }
+
+def load_selected(selection_path):
+    selection = json.loads(Path(selection_path).read_text(encoding="utf-8"))
+    if selection["features"] != FEATURES:
+        raise ValueError("Saved features do not match helpers.FEATURES")
+    configure_tracking(state_dir=selection["state_dir"], allow_create=False)
+    model = mlflow.sklearn.load_model(selection["model_uri"])
+    return model, selection
