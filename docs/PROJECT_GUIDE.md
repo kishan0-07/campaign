@@ -15,7 +15,7 @@ A Python machine-learning mini-project that ranks bank-marketing records by esti
 | Experiment | Notebook | Published supporting files | Evaluation question |
 | --- | --- | --- | --- |
 | Original chronological experiment | [`analysis.ipynb`](../analysis.ipynb) | The repository's `data/`, `results/` and linked figures below. | How does a model trained on earlier source records rank a later historical cohort? |
-| Randomized follow-up | [`analysisRandom.ipynb`](../analysisRandom.ipynb) | Separate [`data_Random/`](../data_Random/) and [`results_Random/`](../results_Random/), saved notebook outputs, and the comparison tables in this README. | How does the same candidate set behave when training and held-out records are sampled from the same mixed historical dataset? |
+| Randomized follow-up | [`analysisRandom.ipynb`](../analysisRandom.ipynb) | Separate [`data_Random/`](../data_Random/) and [`results_Random/`](../results_Random/), saved notebook outputs, and the comparison tables in this guide. | How does the same candidate set behave when training and held-out records are sampled from the same mixed historical dataset? |
 
 **Publication layout:** the original notebook, `data/` and `results/` describe the chronological experiment. The randomized notebook uses separate `data_Random/` and `results_Random/` directories. Both raw copies contain the same tabular records, but line endings produce different checksums; see [source checksum and line endings](#source-checksum-and-line-endings). Unless labeled randomized, instructions and identities refer to the **original chronological experiment**. Fitted model files and the author's MLflow database are not distributed. A fresh reproduction trains its own models and creates its own local tracking state.
 
@@ -64,31 +64,89 @@ There are no invented contact costs or revenues. This is an observational predic
 
 ## Architecture and project files
 
-The original notebook coordinates the chronological experiment shown here; the randomized notebook reuses the same modules with a different split/validation protocol and separate data/result paths. Its `DATA_DIR` and `RESULTS_DIR` settings point to `data_Random/` and `results_Random/`. Small shared modules implement the input contract, sklearn pipeline factory, ranking policy and saved-model loading. Training uses standard sklearn APIs rather than a custom estimator or training framework.
+The original notebook coordinates the local workflow shown in the [README architecture](../README.md#architecture). The five numbered groups describe data preparation, model development, tracking/persistence, batch prediction and final evaluation. They are responsibilities within one offline Python project; no web server or application customer database is required. Candidate runs are tracked during E, and H saves the selected fitted pipeline. The numbering is not a claim that tracking starts only after selection.
 
-### Original experiment and model persistence
+### End-to-end architecture
 
 ```mermaid
-flowchart TD
-    Source["Historical source CSV"] --> Split["Validate, assign IDs and split in order"]
-    Split --> Train["Train: 28,831 records"]
-    Split --> Dev["Development: 6,178 records"]
-    Split --> Holdout["Final: 6,179 records"]
-    Train --> Fit["Fit four fresh sklearn pipelines"]
-    Fit --> Compare["Score and compare on development"]
-    Dev --> Compare
-    Compare --> Choose["Choose an existing fitted pipeline"]
-    Choose --> Save["Log the pipeline without refitting"]
-    Save --> Store[("MLflow tracking store")]
-    Save --> Selection["results/selection.json"]
-    Selection --> Access["Record final access before opening labels"]
-    Access --> Final["Evaluate the fixed saved model once"]
-    Holdout --> Final
-    Store --> Final
-    Final --> Report["results/final_result.json"]
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Segoe UI, Arial, sans-serif", "fontSize": "16px", "primaryTextColor": "#0f172a", "lineColor": "#64748b", "edgeLabelBackground": "#ffffff", "background": "#ffffff"}, "flowchart": {"curve": "basis", "nodeSpacing": 32, "rankSpacing": 48, "htmlLabels": true}}}%%
+flowchart TB
+    subgraph DATA["01  DATA & SPLIT"]
+        Source[("UCI Bank Marketing<br/>41,188 historical records")]
+        Split("Validate & split in source order<br/>8 features · exclude call duration")
+        Source --> Split
+    end
+
+    subgraph BUILD["02  TRAIN & SELECT"]
+        Fit("Fit on TRAIN only<br/>Prior · 2 logistic models · forest")
+        Compare("Compare on DEVELOPMENT<br/>Fix the best fitted pipeline")
+        Fit --> Compare
+    end
+
+    subgraph SAVE["03  TRACK & SAVE"]
+        Tracking[("LOCAL MLFLOW<br/>SQLite metadata<br/>Model & report artifacts")]
+        Selection["selection.json<br/>Model location · features<br/>Ranking policy"]
+    end
+
+    subgraph USE["04  SAVED-MODEL PREDICTION"]
+        Incoming["New label-free CSV<br/>Record IDs + 8 features"]
+        CLI("predict.py<br/>Validate · load saved pipeline<br/>Predict probabilities")
+        Rank("Rank the whole batch<br/>Select floor(batch size / 10)")
+        Output["Ranked CSV<br/>ID · probability · rank · selected"]
+        Incoming --> CLI --> Rank --> Output
+    end
+
+    subgraph CHECK["05  FINAL EVALUATION"]
+        Evaluate("Evaluate the fixed model once<br/>Record access before reading labels")
+        Report["Final report<br/>Precision · recall · lift · AP<br/>Probability errors · limitations"]
+        Evaluate --> Report
+    end
+
+    Followup["EXPLORATORY FOLLOW-UP<br/>Shuffled split · KFold for lr_c1<br/>Separate data & results folders"]
+
+    Split -->|Train: 28,831| Fit
+    Split -->|Development: 6,178| Compare
+    Compare -->|Log runs + save fitted winner| Tracking
+    Compare --> Selection
+    Tracking -->|Load saved model| CLI
+    Selection --> CLI
+    Split -->|Final: 6,179 held back| Evaluate
+    Tracking -->|Load fixed model| Evaluate
+    Selection --> Evaluate
+    Source -.-> Followup
+
+    classDef data fill:#eff6ff,stroke:#60a5fa,color:#172554,stroke-width:1.5px;
+    classDef process fill:#eef2ff,stroke:#818cf8,color:#312e81,stroke-width:1.5px;
+    classDef store fill:#f5f3ff,stroke:#a78bfa,color:#4c1d95,stroke-width:1.5px;
+    classDef inference fill:#ecfdf5,stroke:#34d399,color:#064e3b,stroke-width:1.5px;
+    classDef evaluation fill:#fffbeb,stroke:#fbbf24,color:#78350f,stroke-width:1.5px;
+    classDef note fill:#f8fafc,stroke:#94a3b8,color:#475569,stroke-dasharray:5 4;
+
+    class Source,Split data;
+    class Fit,Compare process;
+    class Tracking,Selection store;
+    class Incoming,CLI,Rank,Output inference;
+    class Evaluate,Report evaluation;
+    class Followup note;
+
+    style DATA fill:#f8fbff,stroke:#dbeafe,color:#1e3a8a
+    style BUILD fill:#f9faff,stroke:#e0e7ff,color:#3730a3
+    style SAVE fill:#fcfaff,stroke:#ede9fe,color:#5b21b6
+    style USE fill:#f7fefa,stroke:#d1fae5,color:#065f46
+    style CHECK fill:#fffdf7,stroke:#fef3c7,color:#92400e
 ```
 
-Only training records fit the candidate pipelines. Development results choose the saved predictor; final results do not feed back into selection. The tracking store consists of SQLite metadata and separate artifact files. The permanent final-access marker is created before final labels are opened.
+Read the architecture from the data source down to the two uses of the fixed model:
+
+1. **Data and split — A–C:** validate the source and preserve record identity/order. The original split has 28,831 training, 6,178 development and 6,179 final records. The model input is the shared eight-feature list; `y`, `record_id` and post-call `duration` do not enter the estimators.
+2. **Train and select — E–G:** build four fresh sklearn pipelines and fit them on training records only. Learned imputation, scaling and category encoding stay inside those pipelines. Development precision at the contact budget chooses the winner, with AP and the documented deterministic rules breaking ties. Retain its existing fitted object; do not retrain on development.
+3. **Track and save — A/E/H:** MLflow stores experiment/run metadata in SQLite and files in a separate artifact directory. E records the candidate attempts; H logs the exact fitted winner. `selection.json` records its model URI, state directory, feature names and ranking policy. That JSON is a locator and decision record, not a fitted model. The tracking database and model artifacts must both remain available.
+4. **Saved-model prediction — H and later CLI use:** `predict.py` reads a label-free CSV, normalizes inputs through `prepare_inputs`, reloads the native sklearn pipeline with `load_selected`, and extracts class-1 probabilities through `positive_scores`. `rank_customers` sorts unrounded score descending, then numeric ID ascending, and selects `floor(n/10)` across the whole batch. It writes every record with its probability, rank and selection flag; it does not train or read labels.
+5. **Final evaluation — J, after H/I checks:** use the fixed selected model and policy. Create the permanent `final_access.json` marker before reading final labels, score final features, join labels by ID and save `final_result.json`. Log final metrics to the chosen run. Final findings never feed back into selection; technical recovery preserves the existing attempt rather than making its labels unseen again.
+
+The dashed branch summarizes the **separate randomized follow-up**, which reuses the same shared modules and candidate configurations with `data_Random/` and `results_Random/`. Its training-only `KFold` diagnostics evaluate `lr_c1`; they are not forest tuning or evidence of forest performance on later campaigns. The original training-only diagnostic uses `TimeSeriesSplit`, also for `lr_c1`. Those diagnostics and plots support interpretation; they do not replace the development selection or create another final test.
+
+Training uses standard sklearn APIs rather than a custom estimator or training framework. The runtime functions are mapped below; exact split protocols and study-specific results remain in their respective sections.
 
 ### Saved-model batch prediction
 
@@ -106,7 +164,7 @@ flowchart TD
     Budget --> Output["CSV with IDs, probabilities, ranks and selections"]
 ```
 
-The CLI loads the existing selected model through its tracking store and ranks the entire batch. It never trains or reads labels. A fresh reproduction generates its own model/store and selection in H. These Mermaid diagrams render in GitHub's Markdown view; local editors need Mermaid preview support.
+The detailed flow above expands group 04 of the overview. The CLI uses the saved selection's `state_dir` to locate the existing SQLite/artifact store and loads the recorded model URI; it does not discover a downloadable model in the GitHub checkout. A fresh reproduction generates its own matching model/store and selection in H. Use `results/selection.json` for original training or explicitly pass `--selection results_Random/selection.json` for randomized training. These Mermaid diagrams render in GitHub's Markdown view; local editors need Mermaid preview support.
 
 ### Project layout
 
