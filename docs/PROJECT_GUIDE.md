@@ -69,26 +69,26 @@ The original notebook coordinates the local workflow shown in the [README archit
 ### End-to-end architecture
 
 ```mermaid
-%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Segoe UI, Arial, sans-serif", "fontSize": "16px", "primaryTextColor": "#0f172a", "lineColor": "#64748b", "edgeLabelBackground": "#ffffff", "background": "#ffffff"}, "flowchart": {"curve": "basis", "nodeSpacing": 32, "rankSpacing": 48, "htmlLabels": true}}}%%
+%%{init: {"theme":"base","htmlLabels":false,"fontFamily":"Arial, Helvetica, sans-serif","themeVariables":{"fontFamily":"Arial, Helvetica, sans-serif","fontSize":"16px","primaryTextColor":"#0f172a","lineColor":"#64748b","edgeLabelBackground":"#ffffff"},"flowchart":{"htmlLabels":false,"curve":"basis","nodeSpacing":36,"rankSpacing":52,"padding":20}}}%%
 flowchart TB
-    subgraph DATA["01  DATA & SPLIT"]
+    subgraph DATA["01 DATA & SPLIT"]
         Source[("UCI Bank Marketing<br/>41,188 historical records")]
-        Split("Validate & split in source order<br/>8 features · exclude call duration")
+        Split("Validate and split<br/>in source order<br/>8 features · no call duration")
         Source --> Split
     end
 
-    subgraph BUILD["02  TRAIN & SELECT"]
+    subgraph BUILD["02 TRAIN & SELECT"]
         Fit("Fit on TRAIN only<br/>Prior · 2 logistic models · forest")
         Compare("Compare on DEVELOPMENT<br/>Fix the best fitted pipeline")
         Fit --> Compare
     end
 
-    subgraph SAVE["03  TRACK & SAVE"]
+    subgraph SAVE["03 TRACK & SAVE"]
         Tracking[("LOCAL MLFLOW<br/>SQLite metadata<br/>Model & report artifacts")]
         Selection["selection.json<br/>Model location · features<br/>Ranking policy"]
     end
 
-    subgraph USE["04  SAVED-MODEL PREDICTION"]
+    subgraph USE["04 BATCH PREDICTION"]
         Incoming["New label-free CSV<br/>Record IDs + 8 features"]
         CLI("predict.py<br/>Validate · load saved pipeline<br/>Predict probabilities")
         Rank("Rank the whole batch<br/>Select floor(batch size / 10)")
@@ -96,13 +96,13 @@ flowchart TB
         Incoming --> CLI --> Rank --> Output
     end
 
-    subgraph CHECK["05  FINAL EVALUATION"]
+    subgraph CHECK["05 FINAL CHECK"]
         Evaluate("Evaluate the fixed model once<br/>Record access before reading labels")
         Report["Final report<br/>Precision · recall · lift · AP<br/>Probability errors · limitations"]
         Evaluate --> Report
     end
 
-    Followup["EXPLORATORY FOLLOW-UP<br/>Shuffled split · KFold for lr_c1<br/>Separate data & results folders"]
+    Followup["EXPLORATORY FOLLOW-UP<br/>Shuffled split<br/>KFold diagnostic: lr_c1 only<br/>Separate data and results"]
 
     Split -->|Train: 28,831| Fit
     Split -->|Development: 6,178| Compare
@@ -110,7 +110,7 @@ flowchart TB
     Compare --> Selection
     Tracking -->|Load saved model| CLI
     Selection --> CLI
-    Split -->|Final: 6,179 held back| Evaluate
+    Split -->|Final: 6,179| Evaluate
     Tracking -->|Load fixed model| Evaluate
     Selection --> Evaluate
     Source -.-> Followup
@@ -151,6 +151,7 @@ Training uses standard sklearn APIs rather than a custom estimator or training f
 ### Saved-model batch prediction
 
 ```mermaid
+%%{init: {"htmlLabels":false,"fontFamily":"Arial, Helvetica, sans-serif","themeVariables":{"fontFamily":"Arial, Helvetica, sans-serif"},"flowchart":{"htmlLabels":false,"padding":20}}}%%
 flowchart TD
     Input["Label-free prediction CSV"] --> Prepare["prepare_inputs: validate eight features and IDs"]
     Selection["results/selection.json"] --> Load["load_selected: load the fitted pipeline"]
@@ -164,7 +165,7 @@ flowchart TD
     Budget --> Output["CSV with IDs, probabilities, ranks and selections"]
 ```
 
-The detailed flow above expands group 04 of the overview. The CLI uses the saved selection's `state_dir` to locate the existing SQLite/artifact store and loads the recorded model URI; it does not discover a downloadable model in the GitHub checkout. A fresh reproduction generates its own matching model/store and selection in H. Use `results/selection.json` for original training or explicitly pass `--selection results_Random/selection.json` for randomized training. These Mermaid diagrams render in GitHub's Markdown view; local editors need Mermaid preview support.
+The detailed flow above expands group 04 of the overview. The CLI uses the saved selection's `state_dir` to locate the existing SQLite/artifact store and loads the recorded model URI; it does not discover a downloadable model in the GitHub checkout. A fresh reproduction generates its own matching model/store and selection in H. Use `results/selection.json` for original training or explicitly pass `--selection results_Random/selection.json` for randomized training. Local editors need Mermaid preview support.
 
 ### Project layout
 
@@ -253,7 +254,7 @@ Fitted models and full MLflow state are not published. The author's historical s
 
 ## Environment and installation
 
-**Windows only: currently verified/supported with PowerShell.** Run commands from the repository root, currently `D:\campaign-mini`. Other operating systems have not been verified; the default historical tracking location uses Windows `LOCALAPPDATA`.
+Run commands from the project root. The examples below use PowerShell; replace the example checkout path with your own project location.
 
 Install [uv using its official instructions](https://docs.astral.sh/uv/getting-started/installation/). Open PowerShell in the project root. For the current local checkout (original data/results files must be present to run original-demo commands):
 
