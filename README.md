@@ -1,883 +1,143 @@
-<div align="center">
-
 # Campaign Contact Prioritization
 
-### A reproducible machine-learning workflow for ranking historical bank-marketing records under a fixed contact budget
+An offline machine-learning project that ranks historical bank-marketing records under a fixed contact budget.
 
-**Tech stack**
+**Windows only: currently verified/supported with PowerShell.** Other operating systems have not been verified.
 
-[![Python 3.13](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![scikit-learn 1.9.1](https://img.shields.io/badge/scikit--learn-1.9.1-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/stable/)
-[![MLflow 3.17.1](https://img.shields.io/badge/MLflow-3.17.1-0194E2?logo=mlflow&logoColor=white)](https://mlflow.org/)
-[![pandas 3.0.6](https://img.shields.io/badge/pandas-3.0.6-150458?logo=pandas&logoColor=white)](https://pandas.pydata.org/)
-[![NumPy 2.5.4](https://img.shields.io/badge/NumPy-2.5.4-013243?logo=numpy&logoColor=white)](https://numpy.org/)
+[![Python 3.13](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)](https://www.python.org/) [![scikit-learn](https://img.shields.io/badge/scikit--learn-1.9.1-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/stable/) [![MLflow](https://img.shields.io/badge/MLflow-3.17.1-0194E2?logo=mlflow&logoColor=white)](https://mlflow.org/) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-[![SciPy 1.18.1](https://img.shields.io/badge/SciPy-1.18.1-8CAAE6?logo=scipy&logoColor=white)](https://scipy.org/)
-[![Matplotlib 3.11.2](https://img.shields.io/badge/Matplotlib-3.11.2-11557C)](https://matplotlib.org/)
-[![SQLite tracking metadata](https://img.shields.io/badge/SQLite-Tracking%20metadata-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
-[![uv 0.11.26](https://img.shields.io/badge/uv-0.11.26-DE5FE9?logo=uv&logoColor=white)](https://docs.astral.sh/uv/)
-[![pytest 9.1.1](https://img.shields.io/badge/pytest-9.1.1-0A9EDC?logo=pytest&logoColor=white)](https://docs.pytest.org/)
+**In five lines:**
 
-**Project status:** Completed offline learning mini-project · [original chronological results](#final-evaluation-of-the-fixed-forest) · [randomized follow-up and comparison](#randomized-follow-up-and-comparison) · [saved-model CLI verified](#verification)
+- Rank records by estimated subscription probability and select the top **10%** of each batch.
+- The original experiment trains on earlier records and evaluates on later historical records.
+- Its random forest captured **291 subscribers among 617 selections**, versus about **237 expected at random**.
+- That is about **23% more historical subscribers captured** at the same budget, not subscriptions caused by calling.
+- A randomized follow-up explores how split design changes results; both completed studies and their saved results are included.
 
-[Setup](#environment-and-installation) · [Run predictions](#run-predictions) · [Architecture](#architecture-and-project-files) · [Original results](#recorded-results-and-interpretation) · [Randomized comparison](#randomized-follow-up-and-comparison) · [MLflow and saved model](#mlflow-tracking-and-saved-model) · [Verification](#verification)
+| Final evaluation | Original chronological | Randomized follow-up |
+| --- | ---: | ---: |
+| Historical subscribers selected / budget | 291 / 617 | 245 / 617 |
+| Random expected subscribers selected | 237.25 | 69.00 |
+| Precision / lift | 47.16% / 1.23× | 39.71% / 3.55× |
 
-</div>
+**Random splitting does not establish better future-campaign performance.** Training and evaluation populations changed, and the follow-up reused an already-examined dataset. [Read the full comparison](docs/PROJECT_GUIDE.md#randomized-follow-up-and-comparison).
 
-A Python machine-learning mini-project that ranks bank-marketing records by estimated subscription probability and selects the highest-ranked **10% of each submitted batch**. It demonstrates data validation, leakage-aware preprocessing, model comparison, ordered and shuffled validation, experiment tracking, model persistence and prediction from a separate command-line process.
+[Quick start](#quick-start) · [What the project does](#what-the-project-does) · [Architecture](#architecture) · [Experiments and evidence](#experiments-and-evidence) · [Detailed guide](docs/PROJECT_GUIDE.md) · [License](#license-and-attribution)
 
-**Original chronological outcome:** the selected random forest found **291 historical subscribers among 617 selected records** in the final cohort: **47.16% precision**, **12.25% recall** and **1.23 lift**. A uniformly random shortlist of the same size would contain **237.25 subscribers on average** in that cohort. The model's shortlist therefore contained **22.65% more historical subscribers than the random expectation—about 23% more**, at the same contact budget. This supports a modest historical ranking benefit; it does not establish additional subscriptions caused by calling, profitability or production readiness.
+## Quick start
 
-**Randomized follow-up outcome:** the same forest configuration, fitted on a new shuffled training partition, found **245 subscribers among 617 selections**: **39.71% precision**, **35.46% recall** and **3.55 lift**, versus **69.00 subscribers expected from random selection** in that cohort. The forest won both development comparisons. These are different training and evaluation records: **random splitting does not establish better future-campaign performance**. The [comparison below](#randomized-follow-up-and-comparison) explains what the two experiments support.
-
-### Which notebook and artifacts describe which experiment?
-
-| Experiment | Notebook | Published supporting files | Evaluation question |
-| --- | --- | --- | --- |
-| Original chronological experiment | [`analysis.ipynb`](analysis.ipynb) | The repository's `data/`, `results/` and linked figures below. | How does a model trained on earlier source records rank a later historical cohort? |
-| Randomized follow-up | [`analysisRandom.ipynb`](analysisRandom.ipynb) | Separate [`data_Random/`](data_Random/) and [`results_Random/`](results_Random/), saved notebook outputs, and the comparison tables in this README. | How does the same candidate set behave when training and held-out records are sampled from the same mixed historical dataset? |
-
-**Publication layout:** the original notebook, `data/` and `results/` retain the chronological experiment. The randomized notebook's generated data and result files use only `data_Random/` and `results_Random/`; these directories contain its separate split, diagnostic files, figures and final records. Both raw-source copies have the same recorded checksum. Unless explicitly labeled randomized, the setup, architecture, result-file links, default CLI selection and MLflow identity below refer to the **original chronological experiment**. The external MLflow database and fitted-model artifacts are not included for either experiment.
-
-> **Both evaluations are complete.** Final labels have already been accessed. Preserve each attempt's recorded decision and final-access evidence; do not delete markers to repeat selection. **Read the saved notebook outputs rather than using Run All.** The randomized notebook now stops at an early completed-record guard before tracking or artifact writes, and its saved final-activation flag is disabled. Its preserved outputs record the historical execution before the folder relocation; the path changes were verified separately without retraining or reopening final labels. See [reading and reproducing the randomized notebook](#reading-and-reproducing-the-randomized-notebook).
-
-## Contents
-
-- [Problem and decision](#problem-and-decision)
-- [Architecture and project files](#architecture-and-project-files)
-- [Environment and installation](#environment-and-installation)
-- [Data and input contract](#data-and-input-contract)
-- [Split and leakage boundaries](#split-and-leakage-boundaries)
-- [Models and selection](#models-and-selection)
-- [Metrics](#metrics)
-- [Original results and interpretation](#recorded-results-and-interpretation)
-- [Randomized follow-up and comparison](#randomized-follow-up-and-comparison)
-- [Run predictions](#run-predictions)
-- [MLflow tracking and saved model](#mlflow-tracking-and-saved-model)
-- [Experiment workflow and reproduction](#experiment-workflow-and-reproduction)
-- [Verification](#verification)
-- [Limitations and useful next work](#limitations-and-useful-next-work)
-- [Troubleshooting](#troubleshooting)
-- [References and attribution](#references-and-attribution)
-
-## Problem and decision
-
-A hypothetical campaign analyst can contact only a limited number of people. Given a batch of eligible records, the project estimates historical subscription likelihood, orders the records and returns a shortlist.
-
-The decision is fixed before final evaluation:
-
-1. Score every record in the submitted batch using the same saved predictor.
-2. Sort by **unrounded probability descending**, then **numeric `record_id` ascending** for ties.
-3. Select `k = floor(n / 10)` records, where `n` is the entire batch size.
-4. Compare shortlist quality with a prior-only model and the expected outcome of uniform random selection.
-
-For example, a batch of 100 records produces a shortlist of 10. The model's default class-prediction threshold of 0.5 does not determine the shortlist.
-
-- A **true positive** is a selected record whose historical label is subscription.
-- A **false positive** is a selected record whose historical label is no subscription.
-- A **false negative** is an unselected record whose historical label is subscription.
-- A **true negative** is an unselected record whose historical label is no subscription.
-
-There are no invented contact costs or revenues. This is an observational prediction task: historical subscription labels do not reveal whether contacting a person would change their decision. The function name `rank_customers` does not mean the dataset provides verified unique customer identities.
-
-## Architecture and project files
-
-The original notebook coordinates the chronological experiment shown here; the randomized notebook reuses the same modules with a different split/validation protocol and separate data/result paths. Its `DATA_DIR` and `RESULTS_DIR` settings point to `data_Random/` and `results_Random/`. Small shared modules implement the input contract, sklearn pipeline factory, ranking policy and saved-model loading. Training uses standard sklearn APIs rather than a custom estimator or training framework.
-
-### Original experiment and model persistence
-
-```mermaid
-flowchart TD
-    Source["Historical source CSV"] --> Split["Validate, assign IDs and split in order"]
-    Split --> Train["Train: 28,831 records"]
-    Split --> Dev["Development: 6,178 records"]
-    Split --> Holdout["Final: 6,179 records"]
-    Train --> Fit["Fit four fresh sklearn pipelines"]
-    Fit --> Compare["Score and compare on development"]
-    Dev --> Compare
-    Compare --> Choose["Choose an existing fitted pipeline"]
-    Choose --> Save["Log the pipeline without refitting"]
-    Save --> Store[("MLflow tracking store")]
-    Save --> Selection["results/selection.json"]
-    Selection --> Access["Record final access before opening labels"]
-    Access --> Final["Evaluate the fixed saved model once"]
-    Holdout --> Final
-    Store --> Final
-    Final --> Report["results/final_result.json"]
-```
-
-Only training records fit the candidate pipelines. Development results choose the saved predictor; final results do not feed back into selection. The tracking store consists of SQLite metadata and separate artifact files. The permanent final-access marker is created before final labels are opened.
-
-### Saved-model batch prediction
-
-```mermaid
-flowchart TD
-    Input["Label-free prediction CSV"] --> Prepare["prepare_inputs: validate eight features and IDs"]
-    Selection["results/selection.json"] --> Load["load_selected: load the fitted pipeline"]
-    State[("MLflow SQLite and model artifacts")] --> Load
-    Prepare --> Scores["positive_scores: class-1 probabilities"]
-    Load --> Scores
-    Scores --> Rank["Sort score descending, numeric ID ascending"]
-    Prepare -->|Record IDs| Rank
-    Selection -->|Saved ranking policy| Rank
-    Rank --> Budget["Select floor(batch size / 10) records"]
-    Budget --> Output["CSV with IDs, probabilities, ranks and selections"]
-```
-
-The CLI reuses the existing model and ranks the entire submitted batch. It never trains or reads labels. These diagrams use Mermaid and render in [GitHub's Markdown view](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams#creating-mermaid-diagrams); a local editor needs Mermaid preview support to display them as diagrams.
-
-### Project layout
-
-```text
-campaign-mini/
-├── analysis.ipynb                 # Original chronological A–J experiment and saved outputs
-├── analysisRandom.ipynb           # Randomized follow-up, isolated paths and saved outputs
-├── helpers.py                    # Input preparation, pipelines, scores and metrics
-├── tracking.py                   # Tracking configuration and selected-model loading
-├── predict.py                    # Saved-model batch prediction CLI
-├── pyproject.toml                # Dependencies and development tools
-├── uv.lock                       # Locked dependency resolution
-├── .python-version               # Python 3.13
-├── .gitignore
-├── .gitattributes                # Preserve source/random-evidence bytes across clones
-├── README.md
-├── tests/
-│   ├── test_core.py               # Input, preprocessing, scoring and ranking checks
-│   ├── test_tracking.py           # Isolated MLflow persistence and CLI checks
-│   └── test_notebook_layout.py    # Randomized completed-record guard and isolation
-├── data/
-│   ├── raw/bank-additional-full.csv
-│   ├── split_ids.csv
-│   ├── demo_customers.csv
-│   └── holdout/
-│       ├── final_features.csv
-│       └── final_labels.csv
-├── results/                      # Original chronological evidence
-│   ├── comparison.csv
-│   ├── selection_candidates.csv
-│   ├── selection.json
-│   ├── final_access.json
-│   ├── final_result.json
-│   ├── demo_ranked.csv
-│   ├── fold_diagnostics.csv
-│   ├── learning_sizes.csv
-│   ├── learning_curve.csv
-│   ├── train_dev_ap.csv
-│   ├── calibration_bins.csv
-│   ├── permutation_importance.csv
-│   ├── development_groups.csv
-│   ├── dev_inspection.csv
-│   ├── error_examples.csv
-│   └── figures/
-│       ├── train_class_counts.png
-│       ├── train_poutcome_rate.png
-│       ├── ordered_learning_curve.png
-│       └── development_calibration.png
-├── data_Random/                  # Randomized membership; same unchanged raw source
-│   ├── raw/bank-additional-full.csv
-│   ├── split_ids.csv
-│   ├── demo_customers.csv
-│   └── holdout/
-│       ├── final_features.csv
-│       └── final_labels.csv
-└── results_Random/               # Randomized versions of the result tables/JSONs above
-    ├── comparison.csv
-    ├── selection.json
-    ├── final_access.json
-    ├── final_result.json
-    ├── artifact_relocation.json  # Historical-to-published path map and content hashes
-    └── figures/
-        ├── train_class_counts.png
-        ├── train_poutcome_rate.png
-        ├── kfold_learning_curve.png
-        └── development_calibration.png
-```
-
-The listed `data/`, `results/` and their figures describe the original experiment. `data_Random/` and `results_Random/` contain the follow-up's corresponding files; the abbreviated random result listing above also includes its fold/learning tables, calibration, importance, group/error diagnostics and demo predictions. The original ordered-learning-curve figure is not included in `results_Random/`; its corresponding diagnostic is the K-fold figure. See the [randomized evidence links](#randomized-tracking-identity-and-evidence).
-
-MLflow state is stored **outside the repository**. The database holds experiment/run metadata; the artifact directory holds saved files, including the model. This SQLite database is for experiment tracking, not an application customer database.
-
-### Main functions
-
-| Function | Responsibility |
-| --- | --- |
-| `prepare_inputs(table, mode)` | Validate and normalize inputs; return IDs, exactly eight features, and labels only in labeled mode. |
-| `build_pipeline(candidate_id)` | Construct a fresh, unfitted sklearn pipeline for a declared candidate. |
-| `positive_scores(model, X)` | Find class `1` in `classes_` and extract its `predict_proba` column. |
-| `rank_customers(ids, probabilities, policy)` | Apply the whole-batch ordering and fixed contact budget. |
-| `evaluate_ranking(ids, probabilities, labels, policy)` | Join labels by ID and calculate shortlist and probability metrics. |
-| `configure_tracking(state_dir, allow_create=...)` | Configure the existing local SQLite/artifact location, with a load-only option. |
-| `load_selected(selection_path)` | Validate the saved feature list and load the native sklearn pipeline through MLflow. |
-
-## Environment and installation
-
-The checked environment is Windows with PowerShell. Run project commands from the repository root, currently `D:\campaign-mini`. Other operating systems have not been verified; the default tracking location uses Windows `LOCALAPPDATA`.
-
-Install [uv using its official instructions](https://docs.astral.sh/uv/getting-started/installation/). Open PowerShell in the project root. For the current local checkout:
-
-```powershell
-Set-Location D:\campaign-mini
-```
-
-Alternatively, create a separate checkout in a new directory:
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then run in PowerShell:
 
 ```powershell
 git clone https://github.com/kishan0-07/campaign.git campaign-mini
 Set-Location campaign-mini
-```
-
-From whichever project root you chose, check and install the locked dependencies:
-
-```powershell
-uv lock --check
 uv sync --locked
+uv run --locked python -m pytest -q
 ```
 
-**Cloning the source does not restore the external MLflow database or model artifacts.** Tests use their own temporary stores, but prediction with the recorded selection requires the original tracking state or a deliberately migrated and verified copy. See [MLflow tracking and saved model](#mlflow-tracking-and-saved-model).
+A clone includes source, saved notebook outputs, datasets and result files. **Fitted model files and the author's MLflow database are not distributed.** To run the full workflow, create a separate reproduction workspace, train through the notebook and generate your own local tracking state:
 
-`uv sync --locked` creates/synchronizes `.venv`. Commands beginning with `uv run --locked` use that project environment without manual activation. Optional PowerShell activation is `.\.venv\Scripts\Activate.ps1`. Activation is not required for the commands below.
+**[Run the entire project locally — step-by-step guide](docs/PROJECT_GUIDE.md#run-the-entire-workflow-locally)**
 
-In VS Code, install Python/Jupyter support, open the project folder and select `.venv\Scripts\python.exe` as the notebook kernel. Check `sys.executable` and the working directory before executing cells. Installing dependencies in a terminal does not automatically switch an already-running notebook kernel.
+The guide covers both studies, environment/kernel setup, safe output locations, training, tests, CLI predictions and optional final evaluation. It preserves the published completed records. No access to the author's private MLflow state is needed for a fresh local run.
 
-### Verified versions
+A clean clone includes both experiments' tracked data/results. If original directories were intentionally removed from an existing local checkout, the historical files remain available in the published repository.
 
-These versions were read from the working environment on **23 October 2026**:
+## What the project does
 
-| Component | Version |
-| --- | --- |
-| Python | 3.13.5 |
-| uv | 0.11.26 |
-| NumPy | 2.5.4 |
-| pandas | 3.0.6 |
-| scikit-learn | 1.9.1 |
-| SciPy | 1.18.1 |
-| Matplotlib | 3.11.2 |
-| MLflow | 3.17.1 |
-| pytest | 9.1.1 |
-| ipykernel | 7.4.0 |
+Using the **UCI Bank Marketing** dataset, the project estimates historical subscription likelihood from eight fields available within the chosen pre-contact scope: `age`, `previous`, `job`, `marital`, `education`, `housing`, `loan` and `poutcome`. It excludes the post-call field `duration`.
 
-`pyproject.toml` declares minimum dependency versions and Python `>=3.13`; it does not pin all these versions exactly. Preserve `uv.lock` and use the Python 3.13 environment for reproduction. Behavior under other Python/library combinations has not been established.
+Four fixed candidates are compared: a prior-only baseline, two logistic regressions and a constrained random forest. The forest wins both development comparisons. The selected predictor is saved without refitting on development data.
 
-## Data and input contract
+The workflow includes input validation, sklearn preprocessing pipelines, train/development/final boundaries, ranking metrics, MLflow tracking, diagnostic plots, model persistence and a separate prediction CLI. Shared calculations use NumPy, pandas, SciPy and scikit-learn; Matplotlib supplies figures, uv manages the environment, and pytest checks behavior.
 
-### Source dataset
+**Status:** completed learning and engineering mini-project with a positive historical ranking result. It is an offline batch workflow; production suitability, calibrated individual probabilities and causal campaign benefit are not established. [Detailed findings and limitations](docs/PROJECT_GUIDE.md#recorded-results-and-interpretation).
 
-Use the [UCI Bank Marketing dataset](https://archive.ics.uci.edu/dataset/222/bank), specifically **`bank-additional-full.csv`**, containing **41,188 records**. UCI describes this variant as ordered by date, from May 2008 to November 2010.
+## Architecture
 
-Download/extract `bank-additional.zip`, including an inner archive if the download wraps it, and read `bank-additional-names.txt`. Place the unchanged full CSV at `data/raw/bank-additional-full.csv`. Do not substitute the smaller random sample or the older `bank-full.csv` variant.
-
-For the published randomized follow-up, the identical raw CSV is retained separately at [`data_Random/raw/bank-additional-full.csv`](data_Random/raw/bank-additional-full.csv). The [`data_Random/split_ids.csv`](data_Random/split_ids.csv) manifest records its shuffled membership; it must not replace the original [`data/split_ids.csv`](data/split_ids.csv).
-
-The raw CSV is **semicolon-separated**. The notebook reads it with `sep=";"` and `keep_default_na=False`, then declares blank cells missing explicitly. Its target is `y`, with source values `yes` and `no` mapped to `1` and `0`.
-
-Recorded source SHA-256:
-
-```text
-74adfc578bf77a7ff4bb1ba4a9f8709d9e3c6907342959c2c8416847e0afb4d8
+```mermaid
+flowchart TD
+    Data["Historical UCI records"] --> Split["Train / development / final split"]
+    Split --> Fit["Fit four sklearn pipelines on train only"]
+    Fit --> Compare["Compare and select on development"]
+    Compare --> Save["Save the fitted winner with MLflow"]
+    Save --> Final["Evaluate the fixed decision on final once"]
+    Save --> Store[("Your local MLflow state")]
+    Input["Label-free input CSV"] --> CLI["Prediction CLI"]
+    Store --> CLI
+    Policy["Recorded selection and ranking policy"] --> CLI
+    CLI --> Output["Rank every record; select floor(batch size / 10)"]
 ```
 
-To check a local copy without changing it:
+The diagrams render in GitHub's Markdown view. [Full architecture, modules and workflow](docs/PROJECT_GUIDE.md#architecture-and-project-files).
 
-```powershell
-Get-FileHash .\data\raw\bank-additional-full.csv -Algorithm SHA256
-```
+## Experiments and evidence
 
-Hexadecimal letter case does not affect checksum equality. A different checksum requires investigation before claiming the same source and experiment.
-
-Both published raw copies preserve the bytes used by the recorded experiments. Earlier Git newline normalization changed the committed source's line endings while leaving its tabular contents equivalent; this publication restores the recorded source bytes. [`.gitattributes`](.gitattributes) disables newline conversion for the original raw CSV and the randomized data/results artifacts, preserving the source checksum and relocation hashes across checkouts. The original notebook and result records retain their committed content.
-
-### Model inputs
-
-Only these eight fields enter the model, in this shared feature-list order:
-
-| Field | Processing type | Meaning |
+| Study | Notebook | Data and saved results |
 | --- | --- | --- |
-| `age` | Numerical | Recorded age. |
-| `previous` | Numerical | Number of contacts before this campaign. |
-| `job` | Categorical | Job category. |
-| `marital` | Categorical | Marital-status category. |
-| `education` | Categorical | Education category. |
-| `housing` | Categorical | Housing-loan status. |
-| `loan` | Categorical | Personal-loan status. |
-| `poutcome` | Categorical | Outcome of the previous campaign. |
+| Original chronological | [`analysis.ipynb`](analysis.ipynb) | [`data/`](data/), [`results/`](results/) |
+| Randomized curiosity-driven follow-up | [`analysisRandom.ipynb`](analysisRandom.ipynb) | [`data_Random/`](data_Random/), [`results_Random/`](results_Random/) |
 
-`record_id` is a zero-based row identifier assigned in original source order. It preserves alignment and resolves score ties; it is **not a model feature or verified customer identifier**. The target `y` is also excluded from model features.
+The original source-order split uses **28,831 training**, **6,178 development** and **6,179 final** records. Its training/final subscription rates differ sharply: **5.57% / 38.45%**. The randomized split keeps those sizes but mixes earlier and later records, giving **11.28% / 11.18%** rates. Different cohort rates explain why raw precision and lift can tell different stories.
 
-The restricted feature set defines this mini-project's scope. In particular, the post-call field `duration` is excluded because it is unavailable before completing the call. Omitting other source fields is not a claim that all are universally invalid or unhelpful.
+Training-only validation uses `TimeSeriesSplit` in the original and shuffled `KFold` in the follow-up. Those diagnostics evaluate **logistic regression only**; they do not establish temporal robustness of the selected forest. [Validation and calibration analysis](docs/PROJECT_GUIDE.md#what-the-randomized-diagnostics-show).
 
-### Shared validation rules
+**Read the saved outputs; do not use Run All on the completed notebooks.** Final labels have already been accessed. Preserve the permanent final-access records. The randomized notebook has an early completed-record guard; both notebooks retain a later `RUN_FINAL=True` activation cell. [Safe reproduction and notebook guards](docs/PROJECT_GUIDE.md#experiment-workflow-and-reproduction).
 
-The notebook and CLI use the same `prepare_inputs` function:
+The published raw copies have equivalent tabular contents but different line endings and SHA-256 values. The recorded execution bytes remain in the randomized raw copy. [Exact source hashes and explanation](docs/PROJECT_GUIDE.md#source-checksum-and-line-endings).
 
-- Require `record_id` and all eight features; reject duplicate DataFrame column names and invalid or duplicate IDs. IDs must parse as integers without missing values.
-- Trim whitespace. Treat blanks and actual missing values as missing, preserving literal categorical strings such as `unknown` and `NA`.
-- Convert valid numerical values to floating point. Reject nonmissing invalid numerical text, infinity and negative values. Missing numerical values are allowed for imputation.
-- Keep previously unseen categorical strings; the fitted encoder handles them without refitting.
-- Return IDs separately from `X`, preserve row order and select features by name. Extra source columns are ignored as model inputs.
-- In `mode="labeled"`, require valid source `yes`/`no` labels and return mapped `y` separately.
-- In `mode="predict"`, reject a supplied `y` column. Prediction files must be label-free even though labeled source tables are accepted in labeled mode.
+## Predict after local training
 
-The separate final-label table already contains binary `0`/`1` values. It is joined by ID for evaluation, rather than passed through the source-label mapping again.
-
-## Split and leakage boundaries
-
-The **original chronological experiment** uses contiguous source-row partitions, without shuffling or stratification. Boundaries are `7 * n // 10` and `85 * n // 100`.
-
-| Partition | Inclusive record IDs | Records | Subscribers | Subscription rate |
-| --- | --- | ---: | ---: | ---: |
-| Train | 0–28,830 | 28,831 | 1,606 | 5.57% |
-| Development | 28,831–35,008 | 6,178 | 658 | 10.65% |
-| Final | 35,009–41,187 | 6,179 | 2,376 | 38.45% |
-
-The final counts/rate are disclosed here because evaluation is complete. They were not intended as development inputs.
-
-- Train is used for exploratory summaries, fitting preprocessing and fitting candidates.
-- Development is used for the declared candidate comparison and diagnostic inspection.
-- Final features/labels are exported mechanically; final predictive evaluation follows model selection and verification.
-- [`data/split_ids.csv`](data/split_ids.csv) records the exact ID-to-partition assignment. IDs are unique, disjoint and cover the source.
-- Imputation, scaling and category discovery are fitted inside each sklearn pipeline on its training records only. No independent dummy-column creation is performed on held-out partitions.
-- The selected pipeline is the existing train-fitted object. Saving it does not refit it on train plus development.
-
-For the question of training on earlier records and evaluating on later historical records, ordered evaluation preserves that direction. The randomized follow-up answers a different, mixed-population question; it does not replace this temporal check. However, source order is not a complete timestamp or customer-identity system: exact intervals, repeat-customer overlap and full prediction-time availability remain unverified. Matching feature profiles alone do not prove duplicate customers.
-
-Separating files and using an access marker are procedural safeguards. The raw source still contains all labels; this is not a security boundary that can prove nobody ever inspected them.
-
-## Models and selection
-
-Four fixed candidates are constructed with standard sklearn estimators:
-
-| Candidate | Estimator | Declared settings |
-| --- | --- | --- |
-| `prior` | `DummyClassifier` | `strategy="prior"`. |
-| `lr_c1` | `LogisticRegression` | `C=1`, `solver="lbfgs"`, `max_iter=2000`. |
-| `lr_c01` | `LogisticRegression` | `C=0.1`, `solver="lbfgs"`, `max_iter=2000`. |
-| `rf_d8` | `RandomForestClassifier` | `n_estimators=150`, `max_depth=8`, `min_samples_leaf=10`, `random_state=42`, `n_jobs=1`. |
-
-For logistic regression, numerical inputs use median imputation followed by `StandardScaler`. For the forest, numerical inputs use median imputation without scaling. Both use constant `unknown` imputation and `OneHotEncoder(handle_unknown="ignore", sparse_output=False)` for categorical inputs. Imputers retain all-empty feature columns. A `ColumnTransformer` selects the declared fields; a `Pipeline` connects preprocessing and classification. The prior model needs only its classifier step.
-
-`C` controls inverse regularization strength, so `0.1` applies stronger regularization than `1`. The forest's depth/leaf constraints limit model complexity. These are reasonable fixed comparison settings, not demonstrated globally optimal hyperparameters.
-
-Each candidate gets a fresh pipeline, a train-only `fit`, development `predict_proba` scores and its own MLflow candidate run. The project uses manual SDK logging for four fixed candidates and its custom contact-budget metric.
-
-Among successful candidates with defined required metrics, selection sorts by:
-
-1. Development precision at the fixed budget, descending.
-2. Development average precision, descending.
-3. Declared family order: prior, logistic regression, random forest.
-4. Candidate ID, ascending.
-
-The existing fitted `rf_d8` won the original comparison; the same candidate configuration also won the randomized follow-up. These are separately fitted pipelines, not one model evaluated twice. Original selection details are in [`selection_candidates.csv`](results/selection_candidates.csv) and [`selection.json`](results/selection.json). Setup-check runs are excluded from candidate comparison.
-
-## Metrics
-
-Let `n` be cohort size, `P` its number of positive labels, `k = floor(n/10)` the budget and `TPk` the number of positives selected.
-
-| Metric | Definition / interpretation |
-| --- | --- |
-| Precision at budget | `TPk / k`: among the selected records, how many subscribed? Higher is better. |
-| Recall at budget | `TPk / P`: among all historical subscribers, how many were selected? Higher is better. |
-| Lift | `(TPk / k) / (P / n)`: enrichment relative to the cohort's positive rate. `1` is the random-selection expectation. |
-| Average precision (`ap`) | sklearn's summary of the precision–recall ranking over all scores. Higher is better; the constant-score reference is the cohort's positive rate. |
-| Brier score | Mean squared probability error, `mean((p-y)^2)`. Lower is better. |
-| Log loss | Binary probability loss with explicit labels `[0, 1]`; confident wrong predictions incur large penalties. Lower is better. |
-
-TP/FP/FN/TN use the **budget-selected action**, not the estimator's default `predict` threshold. Labels are matched to scores using a validated one-to-one ID join; independently rearranging a label table must not change results.
-
-For a uniformly random shortlist of `k` distinct records from the same cohort:
-
-```text
-Expected TP        = k * P / n
-Expected precision = P / n
-Expected recall    = k / n
-Expected lift      = 1, where defined
-```
-
-These are conditional expectations, not a random model run, confidence intervals, future guarantees or causal effects. The prior candidate produces tied scores, so its numeric-ID shortlist is deterministic and can perform differently from the random expectation.
-
-Zero-budget precision/lift and zero-positive recall/lift/AP are represented by `null` with reasons, rather than invented zeros. Empty evaluation is an error; a header-only prediction batch is supported. Exported JSON rejects NaN and infinity with `allow_nan=False`.
-
-## Recorded results and interpretation
-
-**Original chronological experiment:** all tables, linked CSVs and figures in this section describe the original ordered split. The randomized follow-up has its own [comparison section](#randomized-follow-up-and-comparison).
-
-### Development comparison
-
-All four attempts succeeded on the same **6,178 development records**, containing **658 subscribers**, with a budget of **617**.
-
-| Candidate | Selected positives | Precision | Recall | Lift | AP | Brier ↓ | Log loss ↓ |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `prior` | 54 | 8.75% | 8.21% | 0.822 | 0.1065 | 0.09774 | 0.35877 |
-| `lr_c1` | 143 | 23.18% | 21.73% | 2.176 | 0.1624 | 0.09588 | 0.34700 |
-| `lr_c01` | 137 | 22.20% | 20.82% | 2.085 | 0.1628 | 0.09631 | 0.34900 |
-| **`rf_d8`** | **151** | **24.47%** | **22.95%** | **2.298** | **0.1827** | **0.09554** | **0.34521** |
-
-The random expectation was **65.71 selected subscribers**, **10.65% precision** and lift `1`. The forest found eight more selected positives than `lr_c1` at this budget. That supports its selection among these four attempts; it is not proof of a statistically established or universal forest advantage. Exact values, run IDs and confusion counts are preserved in [`comparison.csv`](results/comparison.csv).
-
-### Final evaluation of the fixed forest
-
-Recorded at **2026-10-22 21:15:33 UTC** / **23 October 2026, 02:45:33 IST** in [`final_result.json`](results/final_result.json).
-
-| Quantity | Recorded value |
-| --- | ---: |
-| Final records / actual subscribers | 6,179 / 2,376 |
-| Selected records | 617 |
-| True positives / false positives | 291 / 326 |
-| False negatives / true negatives | 2,085 / 3,477 |
-| Precision at budget | 47.1637% |
-| Recall at budget | 12.2475% |
-| Lift | 1.2265 |
-| Average precision | 0.46754 |
-| Brier score | 0.31642 |
-| Log loss | 0.98500 |
-| Random expected selected positives | 237.25 |
-| Random expected precision / recall | 38.4528% / 9.9854% |
-
-The shortlist contained about **53.75 more historical subscribers than the random expectation**, or **22.65% enrichment**. Precision exceeded that reference by **8.71 percentage points**. These are retrospective cohort comparisons; they do not mean the campaign would cause 54 additional subscriptions.
-
-The two percentage comparisons use different denominators:
-
-```text
-Relative enrichment = (291 / 237.2539245833 - 1) * 100 = 22.65%
-Precision increase  = (47.1636953 - 38.4528241)       = 8.71 percentage points
-```
-
-Thus, "about 23% more" is a relative increase in historical subscribers captured versus a random shortlist's expected count. It is not a 23-percentage-point precision increase, and the reference is an expectation rather than one observed random draw.
-
-### What improved, and what weakened?
-
-Raw precision and AP increased in the final cohort, but its subscription rate also rose from **10.65% to 38.45%**. Lift fell from **2.30 to 1.23**, and recall at the same capacity fell from **22.95% to 12.25%**. The model retained some ranking benefit, while its relative advantage weakened substantially. Higher final precision alone is not evidence of improved generalization.
-
-Development calibration also shows underprediction: the selected forest's mean estimated probability was approximately **6.15%**, versus an observed subscription rate of **10.65%**. The lowest populated calibration bin contained 6,123 records, averaging about **5.94% predicted** versus **10.44% observed**. See [`calibration_bins.csv`](results/calibration_bins.csv).
-
-![Development calibration of the selected forest](results/figures/development_calibration.png)
-
-The final Brier score and log loss were much worse than development values. This indicates larger probability errors on that later cohort. Because cohort composition/prevalence changed, those aggregate losses do not isolate calibration from other distribution changes. No final calibration-bin analysis is claimed here. Treat the outputs as model estimates, not reliable individualized subscription probabilities.
-
-### Ordered-validation diagnostics
-
-The forward-validation and learning-curve diagnostics used **`lr_c1` only**, on the training partition. `TimeSeriesSplit(n_splits=3)` and sklearn `cross_validate` fit independent pipeline clones; the original comparison candidates remain unchanged.
-
-| Forward fold | Validation subscription rate | Validation AP |
-| --- | ---: | ---: |
-| 1 | 4.75% | 0.05138 |
-| 2 | 6.41% | 0.06635 |
-| 3 | 8.19% | 0.08726 |
-
-These scores were only modestly above their respective constant-score references. On the last forward split, AP rose from approximately **0.0781** to **0.0837** to **0.0873** as training prefixes grew from **6,487** to **12,974** to **21,624** records.
-
-![Ordered learning curve for lr_c1](results/figures/ordered_learning_curve.png)
-
-These are equal-record-count validation windows, not verified equal-duration windows. Larger prefixes change historical coverage as well as sample size. AP differences across cohorts can reflect prevalence and distribution changes. These diagnostics **do not establish temporal robustness of the selected random forest**. See [`fold_diagnostics.csv`](results/fold_diagnostics.csv), [`learning_sizes.csv`](results/learning_sizes.csv) and [`learning_curve.csv`](results/learning_curve.csv).
-
-### Feature and error inspection
-
-Development permutation importance measured the selected forest's AP decrease when permuting each original input through the full fitted pipeline. `age` and `poutcome` had the largest mean decreases, about **0.0322** and **0.0255**, followed by `job` and `education`. Small negative estimates are possible with finite repeats and correlated/redundant inputs; they do not automatically justify deleting features. Importance is model/cohort-specific, not a causal claim, and its repeat standard deviation is not a confidence interval.
-
-Previous-campaign-success records contributed **64 of the 151** selected development positives, indicating substantial concentration in that group. Small groups require caution; these summaries do not establish fairness. The saved false-positive/false-negative examples illustrate individual errors rather than a representative error-rate estimate.
-
-Supporting files: [`permutation_importance.csv`](results/permutation_importance.csv), [`development_groups.csv`](results/development_groups.csv), [`train_dev_ap.csv`](results/train_dev_ap.csv), [`dev_inspection.csv`](results/dev_inspection.csv) and [`error_examples.csv`](results/error_examples.csv). Training and development AP also have different positive-rate references; their difference alone cannot establish the absence of overfitting.
-
-### Assessment
-
-This is a **successful learning and engineering mini-project with a modest positive historical ranking result**. The repository demonstrates the complete offline path from source validation to tracked candidates, a persisted pipeline, separate-process inference and a recorded fixed final evaluation. Production suitability and a causal business benefit remain unproven.
-
-**The original mini-project scope is complete.** Further model tuning is not required to finish it. The limitations describe the boundaries of the evidence; the follow-up experiments below are optional extensions that would strengthen a future study.
-
-## Randomized follow-up and comparison
-
-The follow-up changes how records are allocated to training, development and final evaluation, and how the training-only logistic diagnostic is cross-validated. It is an **exploratory comparison on the already-used source dataset**, not a new independent final test. Its evidence is the saved execution output in [`analysisRandom.ipynb`](analysisRandom.ipynb) and the separate [`data_Random/`](data_Random/) / [`results_Random/`](results_Random/) artifacts. Links under `results/` continue to describe the original experiment.
-
-### What changed and what stayed the same?
-
-| Component | Original chronological experiment | Randomized follow-up |
-| --- | --- | --- |
-| Outer train/development/final split | Consecutive source-order partitions. | Two `train_test_split` calls with `shuffle=True`, `random_state=42`, and no `stratify` argument. |
-| First shuffled split | Not used. | Select exactly 28,831 training records from all 41,188 records; leave 12,357 records. |
-| Second shuffled split | Not used. | Select exactly 6,178 development records from those remaining records; leave 6,179 final records, again using seed 42. |
-| Stage F diagnostic | `TimeSeriesSplit(n_splits=3)`. | `KFold(n_splits=3, shuffle=True, random_state=42)`. |
-| Stage F estimator | Fixed `lr_c1` only. | Fixed `lr_c1` only. |
-| Input data and features | Same source checksum and eight permitted features. | Unchanged. |
-| Candidates and settings | Prior, two logistic regressions and the constrained forest listed above. | Unchanged; the forest settings were not tuned for this follow-up. |
-| Selection and capacity | Development precision, then AP and declared tie-breakers; `floor(n/10)` contacts. | Unchanged. |
-| Fit boundary | Fit each candidate on its training partition only; save the chosen fitted object without train-plus-development refitting. | Same rule, applied to the randomized training partition. |
-
-The partitions remain disjoint within each experiment. Shuffled K-fold fits independent logistic-pipeline clones inside the randomized **training partition**; it does not include development/final records, tune the candidates or improve the forest automatically. The outer development comparison still chooses the winner, and final evaluation still uses that fixed selection.
-
-### Why the evaluation populations differ
-
-| Partition | Records in each experiment | Original subscribers / rate | Randomized subscribers / rate |
-| --- | ---: | ---: | ---: |
-| Training | 28,831 | 1,606 / 5.57% | 3,251 / 11.28% |
-| Development | 6,178 | 658 / 10.65% | 698 / 11.30% |
-| Final | 6,179 | 2,376 / 38.45% | 691 / 11.18% |
-
-Randomization mixes earlier and later source records into each partition, giving these partitions similar historical subscription rates. This is not evidence that real future campaigns have stable populations. The original forest was trained on a 5.57%-positive earlier cohort and faced a 38.45%-positive later cohort; the randomized forest was trained on a much more similar mixture to its held-out records.
-
-Consequently, this comparison changes **both the fitted model's training data and the evaluation population**. It does not isolate the effect of K-fold versus forward CV, or demonstrate a performance improvement on one unchanged test set. The original split also has a substantial population change; order alone does not provide complete timestamps, customer isolation or a causal explanation for that change.
-
-### Randomized development: which candidate won?
-
-All four attempts succeeded on **6,178 records**, with **698 subscribers** and **617 selections**.
-
-| Candidate | Selected positives | Precision | Recall | Lift | AP | Brier ↓ | Log loss ↓ |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `prior` | 22 | 3.57% | 3.15% | 0.316 | 0.11298 | 0.10022 | 0.35270 |
-| `lr_c1` | 235 | 38.09% | 33.67% | 3.371 | 0.33086 | 0.08802 | 0.31429 |
-| `lr_c01` | 237 | 38.41% | 33.95% | 3.400 | 0.33187 | 0.08800 | 0.31420 |
-| **`rf_d8`** | **239** | **38.74%** | **34.24%** | **3.429** | **0.35316** | **0.08681** | **0.30983** |
-
-The forest had the highest development precision, recall, lift and AP and the lowest probability losses among these four candidates. It won under the declared selection rule. Its primary-metric advantage over the best logistic candidate was **two selected positives**, or approximately **0.32 percentage points of precision**; that is an observed lead, not a demonstrated statistically significant advantage or proof that forests always win. Both logistic candidates also showed substantial ranking signal.
-
-The correct uniform-random reference here is **69.71 expected selected positives**, **11.30% precision** and lift `1`. The prior candidate's **22** positives come from tied probabilities resolved by original numeric record ID, producing a deterministic early-ID shortlist. **Do not use 22 as the random-selection expectation.**
-
-### Final results side by side
-
-Each column uses its own development-selected, train-fitted forest. The randomized evaluation was recorded at **2026-10-23 10:53:00 UTC** / **23 October 2026, 16:23:00 IST**.
-
-| Final-cohort quantity | Original chronological | Randomized follow-up |
-| --- | ---: | ---: |
-| Records / selections | 6,179 / 617 | 6,179 / 617 |
-| Historical subscribers / cohort rate | 2,376 / 38.4528% | 691 / 11.1830% |
-| True positives / false positives | 291 / 326 | 245 / 372 |
-| False negatives / true negatives | 2,085 / 3,477 | 446 / 5,116 |
-| Precision at budget | 47.1637% | 39.7083% |
-| Recall at budget | 12.2475% | 35.4559% |
-| Lift over its own cohort rate | 1.2265 | 3.5508 |
-| Average precision | 0.46754 | 0.35805 |
-| Brier score ↓ | 0.31642 | 0.08597 |
-| Log loss ↓ | 0.98500 | 0.30754 |
-| Uniform-random expected positives | 237.25 | 69.00 |
-| Captured positives above random expectation | 53.75 | 176.00 |
-| Relative enrichment over random expectation | 22.65% | 255.08% |
-| Precision advantage over cohort rate | 8.71 percentage points | 28.53 percentage points |
-
-For the randomized cohort, **245 versus 68.9994 expected positives** means **3.55 times the random expectation**, or **255.08% more historical subscribers captured** at the same capacity. This is approximately 176 more than the expected count, not 176 subscriptions caused by a campaign. It is not 355% more, and it is not a 255-percentage-point precision increase.
-
-The original cohort has higher raw precision and AP, but also a much higher underlying positive rate. Its higher raw scores do not establish the better model. The randomized cohort has stronger observed enrichment relative to its own reference and smaller probability losses, but those results do not establish better later-campaign generalization. Changes in prevalence, available training histories and cohort composition affect these metrics; lower Brier/log loss is not isolated evidence that calibration was fixed.
-
-The randomized forest's development/final results were relatively close: **38.74% / 39.71% precision**, **3.43 / 3.55 lift** and **0.35316 / 0.35805 AP**. This supports consistent observed ranking on those two mixed historical partitions. It is one seeded follow-up, not a stability guarantee across seeds, campaigns or unseen future populations.
-
-### What the randomized diagnostics show
-
-**Training-only K-fold and learning curve — logistic regression, not the forest.** All three folds were supported. Validation AP was **0.30218**, **0.32517** and **0.34204**, giving mean **0.32313** and fold standard deviation **0.01634**. Validation positive rates were approximately **11.42%**, **11.18%** and **11.23%**. AP therefore exceeded each fold's constant-score reference.
-
-| Training records per learning-curve fit | Mean training AP | Mean validation AP | Validation fold standard deviation |
-| --- | ---: | ---: | ---: |
-| 5,766 | 0.33487 | 0.32078 | 0.01658 |
-| 11,532 | 0.34673 | 0.32324 | 0.01615 |
-| 19,220 | 0.32585 | 0.32322 | 0.01640 |
-
-Validation AP changed little between the middle and largest sizes for this fixed logistic configuration. This does not show that additional data cannot help the forest or that the project has reached its maximum possible performance. These are three folds, and their standard deviation is not a confidence interval. The largest learning-curve size is 19,220 for all folds; two separate full CV fits use 19,221 training records, so their aggregate AP need not match the full-size learning-curve mean exactly.
-
-![Randomized K-fold learning curve for lr_c1](results_Random/figures/kfold_learning_curve.png)
-
-See the randomized [`fold_diagnostics.csv`](results_Random/fold_diagnostics.csv), [`learning_sizes.csv`](results_Random/learning_sizes.csv) and [`learning_curve.csv`](results_Random/learning_curve.csv).
-
-**Probability quality.** The randomized forest's development mean estimated probability was **11.27%**, close to the observed **11.30%**, versus **6.15% predicted / 10.65% observed** in the original development cohort. Mean agreement can hide bin-level errors:
-
-| Randomized development probability bin | Records | Mean prediction | Observed subscription rate |
-| --- | ---: | ---: | ---: |
-| Up to 0.2 | 5,751 | 8.90% | 8.43% |
-| Above 0.2 to 0.4 | 216 | 28.28% | 35.19% |
-| Above 0.4 to 0.6 | 132 | 54.33% | 59.09% |
-| Above 0.6 to 0.8 | 79 | 65.23% | 74.68% |
-
-The remaining bin above 0.8 was empty. Higher populated bins still underpredicted the observed rate, and their samples were smaller. These are development diagnostics, not a claim of calibrated individual probabilities or a final-cohort calibration analysis.
-
-![Randomized development calibration of the selected forest](results_Random/figures/development_calibration.png)
-
-The underlying bin counts and rates are in randomized [`calibration_bins.csv`](results_Random/calibration_bins.csv).
-
-**Predictive signals and errors.** Development permutation importance was largest for `poutcome` (mean AP decrease **0.14290**), followed by `age` (**0.03224**) and `previous` (**0.03051**). All **219** previous-campaign-success records were shortlisted, containing **141 of the 239** selected development positives, approximately **59.00%**. This concentration motivates a simple previous-outcome business-rule benchmark at the same capacity; it does not prove a causal effect or that a rule would outperform the model. Small negative importance estimates for `housing`/`loan` do not alone justify removing them. Sparse subgroup summaries and individual error examples do not establish fairness.
-
-The forest's training AP was **0.37339**, versus development AP **0.35316**. This is a modest observed gap under the mixed split; it does not prove the absence of overfitting, repeated-customer dependence or temporal weaknesses.
-
-### What conclusion is justified?
-
-- **Within each declared candidate comparison:** `rf_d8` won on development under the same fixed-budget policy. Its settings were the same, but it was fitted separately on different training records.
-- **Within the randomized evaluation cohort:** the selected forest showed strong observed historical ranking enrichment, with 245 captured positives versus about 69 expected from random selection.
-- **For the original later historical cohort:** the selected forest retained a modest advantage, but lift weakened and probability errors grew as cohort composition changed.
-- **For future campaigns:** neither the randomized result nor a higher lift on a different cohort establishes better future-campaign performance. The chronological experiment remains the more directly relevant test of earlier-to-later transfer, with its documented identity/timing limitations.
-
-The randomized follow-up is a useful learning comparison and evidence that split design changes the question and observed results. It does not supersede the original result or establish a universally better model. It also reuses a dataset whose final labels were already examined in the original study. For example, **4,317 original-final records now belong to randomized training**, and only **950 records** are shared by the two final partitions. This is an expected consequence of reshuffling, not overlap between the randomized train and final partitions. It means the follow-up cannot be called a fresh independent validation.
-
-A stronger claim about future-campaign performance would need a justified earlier-to-later backtest of the forest with precision/lift/AP and then a genuinely untouched later cohort. Hyperparameter changes, additional random seeds or calibration remain hypotheses for a separate study, not requirements for completing this learning project.
-
-### Randomized tracking identity and evidence
-
-| Item | Randomized follow-up value |
-| --- | --- |
-| MLflow experiment | `campaign-mini-random` |
-| Selected candidate | `rf_d8` |
-| Selected run | `78067bd3981645908298e113c80e22fd` |
-| Returned model URI | `models:/m-23831d16c8484a8d911094e9d5526d68` |
-| Source checksum | Same SHA-256 documented in [data and input contract](#data-and-input-contract). |
-| Public evidence | Executed `analysisRandom.ipynb` outputs, `data_Random/`, `results_Random/`, and the tables above. |
-
-The randomized runs used the same external local tracking state directory as the original, with a different experiment name. The two run/model identities distinguish the saved predictors; neither identifier downloads a model from GitHub. Randomized selection and result metadata are published, but the external database and fitted-model artifacts are not. Existing links such as `results/final_result.json` and `results/selection.json` refer to the original chronological artifacts, not this follow-up.
-
-| Randomized evidence | Published files |
-| --- | --- |
-| Source and shuffled membership | [`raw CSV`](data_Random/raw/bank-additional-full.csv), [`split IDs`](data_Random/split_ids.csv), [`label-free demo`](data_Random/demo_customers.csv), [`final features`](data_Random/holdout/final_features.csv), [`final labels`](data_Random/holdout/final_labels.csv). These labels are already known. |
-| Candidate comparison and fixed decision | [`comparison.csv`](results_Random/comparison.csv), [`selection_candidates.csv`](results_Random/selection_candidates.csv), [`selection.json`](results_Random/selection.json). |
-| Final evaluation | [`final_access.json`](results_Random/final_access.json), [`final_result.json`](results_Random/final_result.json). |
-| Logistic diagnostics | [`fold_diagnostics.csv`](results_Random/fold_diagnostics.csv), [`learning_sizes.csv`](results_Random/learning_sizes.csv), [`learning_curve.csv`](results_Random/learning_curve.csv), [`K-fold learning curve`](results_Random/figures/kfold_learning_curve.png). |
-| Forest inspection | [`train_dev_ap.csv`](results_Random/train_dev_ap.csv), [`calibration_bins.csv`](results_Random/calibration_bins.csv), [`permutation_importance.csv`](results_Random/permutation_importance.csv), [`development_groups.csv`](results_Random/development_groups.csv), [`dev_inspection.csv`](results_Random/dev_inspection.csv), [`error_examples.csv`](results_Random/error_examples.csv). |
-| Saved-model predictions | [`demo_ranked.csv`](results_Random/demo_ranked.csv). |
-| Relocation provenance | [`artifact_relocation.json`](results_Random/artifact_relocation.json). |
-
-The final-access and final-result JSONs preserve the original execution records byte for byte. Their historical source/manifest path strings can still name `data/`; those strings describe where the randomized execution originally read/wrote its files, not the restored chronological files now published there. [`artifact_relocation.json`](results_Random/artifact_relocation.json) records the old-to-new artifact mapping and content hashes. The current notebook uses the isolated random directories. Moving the evidence changes its published location, not the saved model, split membership, results or evaluation history; it does not rerun the experiment or migrate the MLflow store.
-
-### Reading and reproducing the randomized notebook
-
-1. **To understand the study:** read `analysisRandom.ipynb` with its saved executed outputs, the tables above and the separate random CSVs/JSONs/figures. The notebook is a completed study record. Some saved outputs contain historical pre-relocation paths; the relocation record explains their mapping.
-2. **To keep the original evidence intact:** use `data_Random/` and `results_Random/` for all randomized notebook artifacts. Its early completed-record guard stops normal execution before tracking/writes when randomized final records already exist. The saved final activation is `RUN_FINAL = False`; original `analysis.ipynb`, `data/` and `results/` retain the original experiment.
-3. **To repeat the workflow for learning:** preserve this completed attempt, use a separate working copy/output location and separate tracking state, and keep final activation disabled while checking non-final work. Do not delete completed markers or bypass the guard in this evidence checkout. A different experiment name alone does not isolate files. Reusing these known labels is a reproduction exercise, not a new independent final evaluation.
-4. **To reproduce a prediction:** use `--selection results_Random/selection.json` with the randomized demo and a compatible external MLflow store/model, as shown below. The repository's default CLI selection remains `results/selection.json` for the original model. A clean clone can inspect both experiments' published evidence, but cannot reproduce saved-model predictions until the corresponding external tracking/model state has been restored or deliberately migrated and verified.
-
-The randomized saved outputs and local records were reviewed for split sizes, candidate selection, metric arithmetic and recorded identities. Artifact relocation preserves the recorded evidence; the saved outputs were not regenerated. No full-notebook rerun, candidate retraining or independent final-label rescoring is claimed. The recorded final AP/Brier/log loss remain the experiment's saved values.
-
-## Run predictions
-
-### Reuse the existing selected model
-
-First restore the locked environment and ensure the saved MLflow state exists. Then, from the project root:
-
-```powershell
-uv run --locked python predict.py --help
-uv run --locked python predict.py data/demo_customers.csv results/demo_ranked.csv
-```
-
-The supplied demo has **20 development records**, so its independent batch budget is **2**, not the full development budget of 617. It contains no `y` column. The command writes/replaces the specified output CSV; use a different output path if preserving an earlier prediction file.
-
-To use the **randomized model**, explicitly select its metadata and label-free demo. Write to a new filename to preserve the recorded prediction evidence:
-
-```powershell
-uv run --locked python predict.py data_Random/demo_customers.csv results_Random/demo_ranked_recheck.csv --selection results_Random/selection.json
-```
-
-Compare that output with [`results_Random/demo_ranked.csv`](results_Random/demo_ranked.csv) by ID, numerical probability tolerance and exact rank/selection. This command still requires the randomized model's external MLflow state; publishing its CSVs and selection JSON does not embed the fitted pipeline. Passing the original demo with the randomized selection is possible as inference, but would not reproduce either recorded twenty-row check.
-
-For another file:
-
-```powershell
-uv run --locked python predict.py data/customers.csv results/ranked_customers.csv
-```
-
-Create `data/customers.csv` first using the schema below. An explicit selection path is also supported:
-
-```powershell
-uv run --locked python predict.py data/customers.csv results/ranked_customers.csv --selection results/selection.json
-```
-
-### Input CSV
-
-Prediction input is **comma-separated**, unlike the semicolon-separated raw UCI download. Required columns are `record_id` plus the eight model features; column order may vary. Do not include `y`.
+After completing H in your reproduction notebook, its selection points to your newly saved local model. Create a comma-separated, label-free CSV containing `record_id` and the eight features. Example schema:
 
 ```csv
 record_id,age,previous,job,marital,education,housing,loan,poutcome
 1001,35,0,technician,married,university.degree,yes,no,nonexistent
 1002,54,1,admin.,single,high.school,no,no,success
-1003,,0,unknown,married,basic.9y,unknown,no,nonexistent
 ```
 
-This three-row example demonstrates the schema, missing age and literal `unknown`. It would select **zero** records because `floor(3/10)=0`; use at least ten records when a nonzero shortlist is needed. Categories in an input need not exactly match those observed during training, although unseen values have less learned support.
+```powershell
+uv run --locked python predict.py customers.csv ranked_customers.csv --selection results/selection.json
+```
 
-### Output CSV
+For randomized training, use `--selection results_Random/selection.json` instead. An untouched clone's historical selection points to the author's external state; it is not a downloadable model.
 
-| Column | Meaning |
-| --- | --- |
-| `record_id` | Original input ID. |
-| `estimated_probability` | Saved model's score for class `1`; calibration limitations apply. |
-| `rank` | One-based position after score/ID ordering. |
-| `selected` | Whether the rank is within this batch's `floor(n/10)` budget. |
+Output contains `record_id`, `estimated_probability`, `rank` and `selected`, ordered by unrounded probability descending, then numeric ID ascending. The budget is `floor(n/10)`: fewer than ten rows produce no selections. Submit the intended cohort as one batch. The CLI never trains or reads labels.
 
-All input records are returned in rank order, without a pandas index column. The CLI never trains, imports the notebook or reads labels. Input and output paths must differ. Output parent directories are created as needed.
+[Input validation, missing values, unseen categories and output rules](docs/PROJECT_GUIDE.md#data-and-input-contract) · [Prediction options](docs/PROJECT_GUIDE.md#run-predictions).
 
-Submit the intended candidate cohort as **one batch**. Ranking ten separate chunks is a different decision from ranking their combined records: capacity rounding and which records make the shortlist can change.
-
-A header-only input with all required fields produces a header-only output, but the existing model/backend is still required because loading occurs before the empty-score branch. Input/output relative paths use the terminal's working directory. The default selection path is anchored to `predict.py`'s directory.
-
-## MLflow tracking and saved model
-
-### Original chronological recorded identity
-
-| Item | Value |
-| --- | --- |
-| Experiment | `campaign-mini` |
-| Selected candidate | `rf_d8` |
-| Selected candidate run | `15d21d7a28614c839df9ceb1f27c7fda` |
-| Returned model URI | `models:/m-f39e8303606c40b68cdd25dffa3bc9d6` |
-| State directory | `C:\Users\KISHAN PRAJAPATI\AppData\Local\campaign-mini-state` |
-| Tracking URI | `sqlite:///C:/Users/KISHAN PRAJAPATI/AppData/Local/campaign-mini-state/mlflow.db` |
-| Reproduced notebook setup-check run | `babe1983d0884b3da92d83b9b577f5fe` |
-| Historical setup-check run from the original README | `dd717f5ea4014bcb9fd2d445efe0ec26` |
-
-The setup checks only tested logging/retrieval of a parameter, a numerical test value and a text artifact. They are not trained candidates or model-quality evidence. The selected run's recorded development/final scalar metrics agree with the corresponding result records; the model record links to that same candidate run.
+## Project files
 
 ```text
-C:\Users\KISHAN PRAJAPATI\AppData\Local\campaign-mini-state\
-├── mlflow.db        # Experiments, runs, parameters, metrics and model metadata
-└── artifacts\       # Saved model files and other logged file contents
+analysis.ipynb / analysisRandom.ipynb   Completed studies and saved outputs
+helpers.py                            Validation, pipelines, ranking and metrics
+tracking.py / predict.py               Model loading and batch prediction
+results/ / results_Random/             Separate comparisons, figures and final reports
+data/ / data_Random/                   Separate source, split and demo files
+tests/                                Synthetic and isolated integration tests
+docs/PROJECT_GUIDE.md                  Complete analysis and implementation guide
+pyproject.toml / uv.lock               Dependencies and reproducible resolution
+LICENSE                               MIT software license
 ```
 
-[`results/selection.json`](results/selection.json) stores the selected candidate/run, returned model URI, state directory, ordered feature list and ranking policy. `state_dir` is the runtime authority: `configure_tracking` derives the SQLite URI and requires the existing database and artifact directory when loading.
-
-The logged object is the **exact fitted sklearn pipeline**, including learned preprocessing. H supplies a raw-feature input example and an explicit two-column probability-output signature, with MLflow's pyfunc configured for `predict_proba`. The CLI loads the native sklearn flavor and explicitly looks up the positive-class column. No additional fit is needed to make predictions after restarting Python or VS Code.
-
-### Persistence and portability
-
-Keep the repository, `selection.json`, **both** the MLflow database and artifact files, and the compatible locked environment. A run ID or `selection.json` alone does not contain the fitted model. A `models:/...` URI resolves through its tracking backend; it is not a standalone portable filesystem path.
-
-The recorded artifact locations are local and can contain absolute paths. Moving the database or merely editing `state_dir` does not automatically migrate those artifact references. Restore the original layout for current reuse, or perform and verify a deliberate MLflow migration before claiming portability. Make a consistent backup with tracking writes stopped; do not back up only a model identifier or a live database file while ignoring its associated state.
-
-The model uses cloudpickle-based serialization. Load only trusted project artifacts with compatible dependencies.
-
-### Optional local tracking UI
-
-The UI is not needed for CLI prediction. To inspect the existing experiment, derive the backend from the saved selection rather than starting an unrelated default store:
-
-```powershell
-$campaignTrackingUri = uv run --locked python -c "import json; from pathlib import Path; from tracking import configure_tracking; s=json.loads(Path('results/selection.json').read_text(encoding='utf-8')); print(configure_tracking(s['state_dir'], allow_create=False)['tracking_uri'])"
-uv run --locked mlflow ui --backend-store-uri $campaignTrackingUri --host 127.0.0.1 --port 5000 --no-serve-artifacts
-```
-
-Open [the local MLflow UI](http://127.0.0.1:5000), select `campaign-mini`, and inspect the selected run. Stop the foreground server with `Ctrl+C`. These options were checked against the installed CLI; starting the UI is not part of the test result reported below.
-
-## Experiment workflow and reproduction
-
-### A–J record of the original implementation
-
-| Stage | Work performed | Main evidence |
-| --- | --- | --- |
-| A — Problem and environment | Define the decision, set the environment, configure tracking and retrieve a setup run's parameter/metric/text artifact. | Notebook setup outputs and tracking records. |
-| B — Validate, split and explore | Validate the exact CSV, assign IDs, save split membership, export final files and inspect training data only. | Source checksum, split manifest and training figures. |
-| C — Preprocess | Share validation and construct fresh sklearn pipelines; test learned-state boundaries with synthetic fixtures. | `helpers.py`, preprocessing tests and notebook inspections. |
-| D — Math and metrics | Check a tiny three-row logistic-gradient calculation; implement/test project ranking and metrics using NumPy/sklearn. | Notebook assertions and known-answer ranking tests. |
-| E — Candidate comparison | Fit four train-only pipelines, score development and manually log real candidate runs. | `comparison.csv` and candidate MLflow records. |
-| F — Ordered diagnostics | Run logistic-only forward validation and a learning curve using sklearn model-selection APIs. | Fold/size tables and learning plot. |
-| G — Select and inspect | Apply the declared selection rule; inspect probability errors, groups, examples and permutation importance. | Selection table and development diagnostic files. |
-| H — Save and reuse | Log the existing chosen pipeline, save its returned URI, reload it and compare notebook/CLI results on 20 records. | `selection.json`, MLflow model and `demo_ranked.csv`. |
-| I — Verify | Run focused tests and check the saved predictor agrees with the candidate and CLI. | Test output and notebook verification output. |
-| J — Fixed final decision | Create an exclusive access marker before reading labels, evaluate once, save results and log final metrics to the selected run. | `final_access.json`, `final_result.json` and selected-run metrics. |
-
-The D calculation is a small learning-mechanism exercise. Real candidates use sklearn's implementations; the project does not train a second homemade classifier on the dataset.
-
-### Safe work after completion
-
-Read the saved notebook outputs and result files, run the synthetic/integration tests, or run label-free prediction with the saved pipeline. To print the stored final report without loading labels or rescoring:
-
-```powershell
-Get-Content .\results\final_result.json -Raw
-```
-
-The original chronological notebook's E–H/J guards protect the fixed decision after final access. They are not an early guard around every setup/splitting cell: running that entire notebook can still execute earlier work before a later guard stops it. Its saved activation cell also needs conscious handling. Do not treat the original notebook as a fresh Run All entry point.
-
-The randomized companion adds an earlier guard: its first code cell checks `results_Random/` for completed final records before configuring MLflow or writing outputs, and its saved `RUN_FINAL` setting is false. This guard is intentional for the completed study. Reading the saved randomized report does not require notebook execution:
-
-```powershell
-Get-Content .\results_Random\final_result.json -Raw
-```
-
-If repeating the training workflow for study, preserve this completed attempt and use a separate working copy and separate tracking state. Keep deliberate final activation disabled. Rerunning on these already-known labels is a reproduction exercise, not a new independent final evaluation. A new model-development experiment needs a genuinely new untouched evaluation cohort for an unbiased final claim.
-
-Restarting a kernel loses in-memory fitted objects. Reexecuting a fresh-pipeline `fit` trains a new object and creates a new MLflow run when logging is repeated; it does not recover the old object or silently continue its weights. For current reuse, load the recorded model instead. Its predictions should match within the checked numerical tolerances in the compatible environment.
-
-### Final-access record and recovery
-
-The final stage used exclusive file creation (`Path.open("x")`) to record model/source identity before reading final labels. A preexisting marker or final result prevents the ordinary final path from proceeding. The marker stays permanently, including after a partial failure; a new MLflow run does not create a new holdout.
-
-If only MLflow metric logging needs a retry, read the already-saved result and log its stored finite metrics to the same chosen run. Do not refit, reselect, reopen labels or delete the marker for a logging retry. A marker without a completed result represents an incomplete attempt and needs an honestly documented recovery, not a claim of an unseen final set.
-
-### What the result files contain
-
-| File(s) | Purpose |
-| --- | --- |
-| `comparison.csv` | One row per attempted candidate, including counts, metrics, status and reasons. |
-| `selection_candidates.csv` / `selection.json` | Ordered eligible candidates / fixed runtime selection and policy. |
-| `fold_diagnostics.csv` | Fold ID ranges, label counts, support status and logistic AP: forward folds in `results/`, shuffled K-folds in `results_Random/`. |
-| `learning_sizes.csv` / `learning_curve.csv` | Training-size support records / resulting logistic learning-curve scores for that experiment's validation design. |
-| `train_dev_ap.csv` | Successful learned candidates' train/development AP with cohort sizes and positive rates. |
-| `calibration_bins.csv` | Development prediction-bin counts and predicted/observed rates. |
-| `permutation_importance.csv` | Development AP decreases and repeat standard deviations by original feature. |
-| `development_groups.csv` | Group sizes, positive rates, allocation and shortlist outcomes. |
-| `dev_inspection.csv` / `error_examples.csv` | Row-level development diagnostics / illustrative mistakes. |
-| `demo_ranked.csv` | Saved twenty-row CLI/notebook agreement batch. |
-| `final_access.json` | Permanent record of the final-access start and fixed identities. |
-| `final_result.json` | Stored final counts/metrics, development reference, identities and limitations. |
-| `results_Random/artifact_relocation.json` | Old-to-new artifact locations and hashes, preserving historical execution provenance after publication-path changes. |
-
-The published repository retains both experiments' source/split/demo/holdout CSVs and result files, including row-level development outputs and already-accessed final labels. Original evidence stays under `data/` and `results/`; the randomized companion's evidence stays under `data_Random/` and `results_Random/`. `.gitignore` excludes `.venv/`, `__pycache__/`, `.pytest_cache/` and `.ipynb_checkpoints/`; it does **not** hide datasets, labels or row-level predictions. The external tracking state is absent from the repository because of its location, not a repository ignore rule. Review what is included before sharing and retain dataset attribution.
+Fitted pipelines live in MLflow state outside the published repository. Fresh reproduction creates your own state and new run IDs; predictions then use your generated selection JSON. Reusing historical model IDs instead requires their original tracking state. [Tracking UI, identities and backup](docs/PROJECT_GUIDE.md#mlflow-tracking-and-saved-model).
 
 ## Verification
 
-From the project root:
+The current Windows check on **23 October 2026** reports **65 passing tests**, with one MLflow/SQLAlchemy dependency deprecation warning. Lock consistency also passes. Tests cover preprocessing, validation, budget metrics, ordering, model persistence, CLI agreement and completed-record guards.
 
-```powershell
-uv lock --check
-uv sync --locked
-uv run --locked python -m pytest -q
-```
+Fresh-workspace setup was also checked through dependency installation and MLflow parameter/metric/text retrieval for both notebooks, with access to the author's workspace/backend blocked. Full real-data training, cross-validation and final evaluation were **not** rerun in this documentation check. [Verification details](docs/PROJECT_GUIDE.md#verification).
 
-Recorded verification on **23 October 2026** confirmed the lock check and **62 passing tests** in **21.13 seconds**, with one MLflow/SQLAlchemy `SADeprecationWarning` about the deprecated `noload` strategy. The warning did not fail the checks and is not being presented as a project-code fix. Prediction and MLflow UI command-line options were also checked with `--help`.
+## Read more
 
-After separating the randomized artifacts on **23 October 2026**, `uv lock --check` and `uv sync --locked` passed, and the expanded suite reported **65 passing tests in 14.11 seconds**, with the same single dependency warning. Three new regression cases check that either randomized final marker stops the first code cell before tracking/writes, and that an original-experiment marker is not mistaken for a randomized marker.
+- [Full original findings](docs/PROJECT_GUIDE.md#recorded-results-and-interpretation) and [randomized comparison](docs/PROJECT_GUIDE.md#randomized-follow-up-and-comparison).
+- [Metrics and selection rules](docs/PROJECT_GUIDE.md#models-and-selection).
+- [Complete A–J workflow](docs/PROJECT_GUIDE.md#experiment-workflow-and-reproduction).
+- [Limitations and optional future experiments](docs/PROJECT_GUIDE.md#limitations-and-useful-next-work).
+- [Run the entire workflow locally](docs/PROJECT_GUIDE.md#run-the-entire-workflow-locally) and [troubleshooting](docs/PROJECT_GUIDE.md#troubleshooting).
 
-The relocation review also checked copied-file hashes, restored original records, preserved notebook outputs/execution counts, notebook syntax, isolated paths, README links and Git's byte-preservation rules. Both saved models reproduced their respective twenty-row demo probabilities, ranks and two selections through a fresh CLI process. These checks used temporary copies of the tracking database; the real MLflow database remained byte-identical. They did not retrain candidates or read/rescore final labels. The notebook's historical outputs were preserved, rather than regenerated after the path edits.
+## License and attribution
 
-Tests cover:
+Project source code is available under the [MIT License](LICENSE), copyright 2026 Kishan Prajapati.
 
-- Feature/label/ID separation, missing and invalid inputs, preserved order, and fresh pipeline creation.
-- Train-only learned preprocessing, unchanged statistics after held-out transformation, unseen categories and reordered input columns.
-- Known-answer shortlist metrics, numeric-ID ties, unrounded-score ordering, shuffled label-table order, invalid scores, zero budgets/positives and strict JSON.
-- Positive-class extraction for actual sklearn pipeline candidates.
-- One isolated MLflow native-model save/load round trip and fresh-process CLI agreement, plus missing tracking-state and feature-list mismatch cases.
-- Randomized notebook entry guards for both completed-record files, no tracking/artifact writes on refusal, and separation from original-experiment markers.
-
-Integration fixtures fit **synthetic** models and use pytest temporary SQLite/artifact storage. They end temporary runs and restore tracking configuration; they do not download the dataset, train new real-data candidates or read real final labels.
-
-The saved experiment also records an H/I check that notebook and CLI probabilities agree within `rtol=1e-7, atol=1e-10`, with exact ranks/selections for 20 development records and two selections. The selected run/model identities and stored scalar metrics were reconciled with the result files. Documentation-time checks did **not** rerun the full notebook or rescore the final cohort. Tests and consistent records do not by themselves prove performance on future customers.
-
-## Limitations and useful next work
-
-1. **Historical ranking versus business impact.** No intervention/control design, causal uplift estimate, contact economics or prospective campaign measurement was established.
-2. **Population changes.** Positive rates differ sharply across ordered partitions, and final lift weakened. Exact causes cannot be identified from these aggregates alone.
-3. **Probability reliability.** Development underprediction and larger final probability errors limit interpretation of absolute scores. Lower Brier loss alone would not prove good calibration.
-4. **Identity and timing.** No verified customer-disjoint split or complete point-in-time feature audit is possible from the supplied row identity/time information. Repeated-customer dependence may remain.
-5. **Validation coverage.** Both the original forward diagnostics and randomized K-fold/learning curves diagnose logistic regression, not the selected forest. Four fixed candidates do not establish optimality. The randomized follow-up uses already-examined historical data and does not establish better future-campaign performance.
-6. **Uncertainty and fairness.** There is no justified dependence-aware confidence interval, and sparse subgroup summaries do not establish fairness. The error examples are illustrative.
-7. **Operational scope.** This is a local offline batch workflow. It has not been validated as a deployed multi-user service, with monitoring or a tested model-store migration.
-
-**Optional follow-up experiments:**
-
-- Compare a simple previous-campaign-outcome rule at the same contact budget.
-- Backtest the forest across chronological windows using precision at budget, lift and AP.
-- Verify prediction-time field availability and customer identity where additional source information is available.
-- Investigate recent-history training or a separate later calibration window as hypotheses.
-
-These are not guaranteed fixes or unfinished requirements for this mini-project. Any resulting changes need assessment on a **new untouched cohort**. Do not tune against this completed final set and report it as new final evidence.
-
-## Troubleshooting
-
-| Symptom | Meaning and next step |
-| --- | --- |
-| `Existing mlflow.db and artifacts/ are required ...` | The saved selection points to missing tracking state. Restore the correct database and artifacts; creating an empty replacement store will not recover the model. |
-| MLflow cannot resolve the model or an artifact path | Check the selection's backend, model URI and recorded artifact locations. A source clone or copied SQLite file alone can be insufficient. |
-| Missing required columns | Check the nine-column prediction schema and comma delimiter. The raw UCI file has a different delimiter and includes labels. |
-| Prediction rejects `y` | Remove labels from the prediction input. Use separate ID-aligned labels only for a deliberate evaluation workflow. |
-| Invalid ID/numeric-value error | Check duplicate/missing/non-integer IDs, bad numerical text, infinities and negatives. Do not silently coerce bad values to missing. |
-| Every `selected` value is false | A batch below ten rows has budget zero. Otherwise inspect the input/output cohort and ranking policy. |
-| Import/library mismatch in the notebook | Select the project's `.venv` kernel, save module edits and restart/reload deliberately. `uv run` in a terminal does not change the notebook's interpreter. |
-| Candidate variables are missing after restarting VS Code | In-memory objects were lost. For the completed project, load the saved model through the CLI/loader; do not rerun candidate selection to recover it. |
-| A final-record guard stops notebook execution | This attempt is already complete. Inspect stored results; do not delete the marker or result to bypass the guard. |
-| Input and output must be different files | Choose a separate output path so prediction cannot overwrite its input. |
-
-## References and attribution
-
-- **Dataset:** Moro, Rita and Cortez (2014), *Bank Marketing*, UCI Machine Learning Repository, [DOI: 10.24432/C5K306](https://doi.org/10.24432/C5K306). See the [dataset page](https://archive.ics.uci.edu/dataset/222/bank) and supplied variable notes. UCI lists the dataset under **CC BY 4.0**; retain appropriate attribution when redistributing it. The dataset's license is separate from a software license for this repository; no repository `LICENSE` file is currently provided.
-- **Environment:** [uv documentation](https://docs.astral.sh/uv/) and [installation instructions](https://docs.astral.sh/uv/getting-started/installation/).
-- **ML implementation:** [scikit-learn user guide](https://scikit-learn.org/stable/user_guide.html), including preprocessing pipelines, model selection, probability evaluation and inspection.
-- **Tracking and persistence:** [MLflow tracking quickstart](https://mlflow.org/docs/latest/ml/tracking/quickstart/).
-- **Data and numerical work:** [pandas documentation](https://pandas.pydata.org/docs/), [NumPy documentation](https://numpy.org/doc/) and [Matplotlib documentation](https://matplotlib.org/stable/).
-
-This README distinguishes two completed historical experiments. Original chronological records remain in `analysis.ipynb`, `data/` and `results/`; randomized records are published separately in `analysisRandom.ipynb`, `data_Random/` and `results_Random/`, with relocation provenance retained. Rounded tables are for readability, and neither result is a prospective campaign guarantee.
+The dataset is separately licensed under **CC BY 4.0**. Attribution: Moro, S., Rita, P. and Cortez, P. (2014), *Bank Marketing*, UCI Machine Learning Repository. [Dataset and DOI](https://doi.org/10.24432/C5K306). The MIT software license does not replace the dataset license. [Full attribution and references](docs/PROJECT_GUIDE.md#license-and-attribution).
