@@ -1,0 +1,90 @@
+{
+  "evaluated_at_utc": "2026-10-23T12:41:28.583167+00:00",
+  "selection": {
+    "candidate_id": "rf_d8",
+    "run_id": "52134ede72804e84bcdbc3b8f9e9b641",
+    "model_uri": "models:/m-3cae2dcb9a094a849a292dc315bbde32",
+    "state_dir": "C:\\Users\\KISHAN PRAJAPATI\\AppData\\Local\\campaign-mini-state",
+    "features": [
+      "age",
+      "previous",
+      "job",
+      "marital",
+      "education",
+      "housing",
+      "loan",
+      "poutcome"
+    ],
+    "policy": {
+      "budget_numerator": 1,
+      "budget_denominator": 10,
+      "tie_break": "record_id_ascending"
+    }
+  },
+  "source": {
+    "file": "data_Random/raw/bank-additional-full.csv",
+    "sha256": "74adfc578bf77a7ff4bb1ba4a9f8709d9e3c6907342959c2c8416847e0afb4d8",
+    "source_n": 41188,
+    "split_method": "train_test_split",
+    "shuffle": true,
+    "random_state": 42,
+    "split_sizes": {
+      "train": 28831,
+      "dev": 6178,
+      "final": 6179
+    },
+    "split_manifest": "data_Random/split_ids.csv"
+  },
+  "development_metrics": {
+    "n": 6178,
+    "k": 617,
+    "positives": 698,
+    "tp": 239,
+    "fp": 378,
+    "fn": 459,
+    "tn": 5102,
+    "precision_at_budget": 0.3873581847649919,
+    "recall_at_budget": 0.3424068767908309,
+    "lift": 3.4285084032637823,
+    "ap": 0.35316087360590775,
+    "brier": 0.08680892371183464,
+    "log_loss": 0.30983235871479076,
+    "undefined": {},
+    "random_reference": {
+      "expected_tp": 69.70961476205892,
+      "expected_precision": 0.11298154742635157,
+      "expected_recall": 0.09987050825509873,
+      "expected_lift": 1.0,
+      "undefined": {}
+    }
+  },
+  "metrics": {
+    "n": 6179,
+    "k": 617,
+    "positives": 691,
+    "tp": 245,
+    "fp": 372,
+    "fn": 446,
+    "tn": 5116,
+    "precision_at_budget": 0.39708265802269044,
+    "recall_at_budget": 0.3545586107091172,
+    "lift": 3.5507579506833635,
+    "ap": 0.35804582826022086,
+    "brier": 0.08596596566534603,
+    "log_loss": 0.30754429153101503,
+    "undefined": {},
+    "random_reference": {
+      "expected_tp": 68.99935264605924,
+      "expected_precision": 0.11183039326751902,
+      "expected_recall": 0.0998543453633274,
+      "expected_lift": 1.0,
+      "undefined": {}
+    }
+  },
+  "limitations": [
+    "Historical subscription ranking, not causal uplift or guaranteed campaign profit.",
+    "Random shuffled holdout; customer-disjointness and exact prediction-time availability are unverified.",
+    "Follow-up analysis on an already-used historical dataset; not a new independent final test or evidence of future-campaign performance.",
+    "No justified dependence model or confidence interval was established."
+  ]
+}

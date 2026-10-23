@@ -1,0 +1,11 @@
+record_id,estimated_probability,rank,selected,age,previous,job,marital,education,housing,loan,poutcome,y,error_type,selected_positive
+40702,0.7442427757646944,1,True,82.0,4.0,retired,married,university.degree,no,no,success,0,FP,False
+37896,0.6789755199643328,19,True,27.0,2.0,management,single,university.degree,yes,no,success,0,FP,False
+39865,0.6780362434894639,20,True,27.0,4.0,student,single,university.degree,no,yes,success,0,FP,False
+37523,0.6759890437880463,22,True,29.0,2.0,management,married,university.degree,yes,no,success,0,FP,False
+38487,0.6751383125174165,23,True,71.0,1.0,retired,married,basic.4y,yes,yes,success,0,FP,False
+41054,0.1488974161858248,619,False,31.0,0.0,student,single,university.degree,no,no,nonexistent,1,FN,False
+30424,0.14736197658287875,625,False,25.0,0.0,unknown,single,university.degree,yes,no,nonexistent,1,FN,False
+39515,0.14712863550418048,627,False,29.0,1.0,technician,married,university.degree,yes,no,failure,1,FN,False
+28437,0.14657881806852976,632,False,36.0,2.0,blue-collar,married,basic.9y,yes,no,failure,1,FN,False
+35858,0.14654974533567358,635,False,27.0,0.0,admin.,single,university.degree,yes,no,nonexistent,1,FN,False

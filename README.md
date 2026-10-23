@@ -35,11 +35,11 @@ A Python machine-learning mini-project that ranks bank-marketing records by esti
 | Experiment | Notebook | Published supporting files | Evaluation question |
 | --- | --- | --- | --- |
 | Original chronological experiment | [`analysis.ipynb`](analysis.ipynb) | The repository's `data/`, `results/` and linked figures below. | How does a model trained on earlier source records rank a later historical cohort? |
-| Randomized follow-up | [`analysisRandom.ipynb`](analysisRandom.ipynb) | Saved notebook outputs and the comparison tables in this README. Its regenerated `data/` and `results/` are not being published. | How does the same candidate set behave when training and held-out records are sampled from the same mixed historical dataset? |
+| Randomized follow-up | [`analysisRandom.ipynb`](analysisRandom.ipynb) | Separate [`data_Random/`](data_Random/) and [`results_Random/`](results_Random/), saved notebook outputs, and the comparison tables in this README. | How does the same candidate set behave when training and held-out records are sampled from the same mixed historical dataset? |
 
-**Publication scope:** `analysisRandom.ipynb` is the companion filename to add alongside the unchanged original notebook. This README-only update does not create or rename it. Preserve its executed outputs when adding it. Unless explicitly labeled randomized, the setup, architecture, result-file links, CLI selection and MLflow identity documented below refer to the **original chronological experiment**. No separate randomized CSVs, figures or MLflow state are included in this publication.
+**Publication layout:** the original notebook, `data/` and `results/` retain the chronological experiment. The randomized notebook's generated data and result files use only `data_Random/` and `results_Random/`; these directories contain its separate split, diagnostic files, figures and final records. Both raw-source copies have the same recorded checksum. Unless explicitly labeled randomized, the setup, architecture, result-file links, default CLI selection and MLflow identity below refer to the **original chronological experiment**. The external MLflow database and fitted-model artifacts are not included for either experiment.
 
-> **Both evaluations are complete.** Final labels have already been accessed. Preserve each attempt's recorded decision and final-access evidence; do not delete markers to repeat selection. **Read the saved notebook outputs rather than using Run All.** The randomized notebook still writes to the same `data/` and `results/` paths and contains a deliberate `RUN_FINAL = True` activation cell, despite resetting that flag at runtime afterward. Renaming a notebook does not isolate its side effects: early cells can overwrite original files before a later guard stops execution. See [reading and reproducing the randomized notebook](#reading-and-reproducing-the-randomized-notebook).
+> **Both evaluations are complete.** Final labels have already been accessed. Preserve each attempt's recorded decision and final-access evidence; do not delete markers to repeat selection. **Read the saved notebook outputs rather than using Run All.** The randomized notebook now stops at an early completed-record guard before tracking or artifact writes, and its saved final-activation flag is disabled. Its preserved outputs record the historical execution before the folder relocation; the path changes were verified separately without retraining or reopening final labels. See [reading and reproducing the randomized notebook](#reading-and-reproducing-the-randomized-notebook).
 
 ## Contents
 
@@ -82,7 +82,7 @@ There are no invented contact costs or revenues. This is an observational predic
 
 ## Architecture and project files
 
-The original notebook coordinates the chronological experiment shown here; the randomized notebook reuses the same modules with a different split/validation protocol. Small shared modules implement the input contract, sklearn pipeline factory, ranking policy and saved-model loading. Training uses standard sklearn APIs rather than a custom estimator or training framework.
+The original notebook coordinates the chronological experiment shown here; the randomized notebook reuses the same modules with a different split/validation protocol and separate data/result paths. Its `DATA_DIR` and `RESULTS_DIR` settings point to `data_Random/` and `results_Random/`. Small shared modules implement the input contract, sklearn pipeline factory, ranking policy and saved-model loading. Training uses standard sklearn APIs rather than a custom estimator or training framework.
 
 ### Original experiment and model persistence
 
@@ -131,7 +131,7 @@ The CLI reuses the existing model and ranks the entire submitted batch. It never
 ```text
 campaign-mini/
 ├── analysis.ipynb                 # Original chronological A–J experiment and saved outputs
-├── analysisRandom.ipynb           # Randomized follow-up; publish saved outputs separately
+├── analysisRandom.ipynb           # Randomized follow-up, isolated paths and saved outputs
 ├── helpers.py                    # Input preparation, pipelines, scores and metrics
 ├── tracking.py                   # Tracking configuration and selected-model loading
 ├── predict.py                    # Saved-model batch prediction CLI
@@ -139,10 +139,12 @@ campaign-mini/
 ├── uv.lock                       # Locked dependency resolution
 ├── .python-version               # Python 3.13
 ├── .gitignore
+├── .gitattributes                # Preserve source/random-evidence bytes across clones
 ├── README.md
 ├── tests/
 │   ├── test_core.py               # Input, preprocessing, scoring and ranking checks
-│   └── test_tracking.py           # Isolated MLflow persistence and CLI checks
+│   ├── test_tracking.py           # Isolated MLflow persistence and CLI checks
+│   └── test_notebook_layout.py    # Randomized completed-record guard and isolation
 ├── data/
 │   ├── raw/bank-additional-full.csv
 │   ├── split_ids.csv
@@ -150,30 +152,48 @@ campaign-mini/
 │   └── holdout/
 │       ├── final_features.csv
 │       └── final_labels.csv
-└── results/
+├── results/                      # Original chronological evidence
+│   ├── comparison.csv
+│   ├── selection_candidates.csv
+│   ├── selection.json
+│   ├── final_access.json
+│   ├── final_result.json
+│   ├── demo_ranked.csv
+│   ├── fold_diagnostics.csv
+│   ├── learning_sizes.csv
+│   ├── learning_curve.csv
+│   ├── train_dev_ap.csv
+│   ├── calibration_bins.csv
+│   ├── permutation_importance.csv
+│   ├── development_groups.csv
+│   ├── dev_inspection.csv
+│   ├── error_examples.csv
+│   └── figures/
+│       ├── train_class_counts.png
+│       ├── train_poutcome_rate.png
+│       ├── ordered_learning_curve.png
+│       └── development_calibration.png
+├── data_Random/                  # Randomized membership; same unchanged raw source
+│   ├── raw/bank-additional-full.csv
+│   ├── split_ids.csv
+│   ├── demo_customers.csv
+│   └── holdout/
+│       ├── final_features.csv
+│       └── final_labels.csv
+└── results_Random/               # Randomized versions of the result tables/JSONs above
     ├── comparison.csv
-    ├── selection_candidates.csv
     ├── selection.json
     ├── final_access.json
     ├── final_result.json
-    ├── demo_ranked.csv
-    ├── fold_diagnostics.csv
-    ├── learning_sizes.csv
-    ├── learning_curve.csv
-    ├── train_dev_ap.csv
-    ├── calibration_bins.csv
-    ├── permutation_importance.csv
-    ├── development_groups.csv
-    ├── dev_inspection.csv
-    ├── error_examples.csv
+    ├── artifact_relocation.json  # Historical-to-published path map and content hashes
     └── figures/
         ├── train_class_counts.png
         ├── train_poutcome_rate.png
-        ├── ordered_learning_curve.png
+        ├── kfold_learning_curve.png
         └── development_calibration.png
 ```
 
-The listed `data/`, `results/` and figure files describe the original experiment. Randomized follow-up artifacts are not added to those published directories; its numerical evidence is retained in the second notebook and summarized below.
+The listed `data/`, `results/` and their figures describe the original experiment. `data_Random/` and `results_Random/` contain the follow-up's corresponding files; the abbreviated random result listing above also includes its fold/learning tables, calibration, importance, group/error diagnostics and demo predictions. The original ordered-learning-curve figure is not included in `results_Random/`; its corresponding diagnostic is the K-fold figure. See the [randomized evidence links](#randomized-tracking-identity-and-evidence).
 
 MLflow state is stored **outside the repository**. The database holds experiment/run metadata; the artifact directory holds saved files, including the model. This SQLite database is for experiment tracking, not an application customer database.
 
@@ -246,6 +266,8 @@ Use the [UCI Bank Marketing dataset](https://archive.ics.uci.edu/dataset/222/ban
 
 Download/extract `bank-additional.zip`, including an inner archive if the download wraps it, and read `bank-additional-names.txt`. Place the unchanged full CSV at `data/raw/bank-additional-full.csv`. Do not substitute the smaller random sample or the older `bank-full.csv` variant.
 
+For the published randomized follow-up, the identical raw CSV is retained separately at [`data_Random/raw/bank-additional-full.csv`](data_Random/raw/bank-additional-full.csv). The [`data_Random/split_ids.csv`](data_Random/split_ids.csv) manifest records its shuffled membership; it must not replace the original [`data/split_ids.csv`](data/split_ids.csv).
+
 The raw CSV is **semicolon-separated**. The notebook reads it with `sep=";"` and `keep_default_na=False`, then declares blank cells missing explicitly. Its target is `y`, with source values `yes` and `no` mapped to `1` and `0`.
 
 Recorded source SHA-256:
@@ -261,6 +283,8 @@ Get-FileHash .\data\raw\bank-additional-full.csv -Algorithm SHA256
 ```
 
 Hexadecimal letter case does not affect checksum equality. A different checksum requires investigation before claiming the same source and experiment.
+
+Both published raw copies preserve the bytes used by the recorded experiments. Earlier Git newline normalization changed the committed source's line endings while leaving its tabular contents equivalent; this publication restores the recorded source bytes. [`.gitattributes`](.gitattributes) disables newline conversion for the original raw CSV and the randomized data/results artifacts, preserving the source checksum and relocation hashes across checkouts. The original notebook and result records retain their committed content.
 
 ### Model inputs
 
@@ -461,7 +485,7 @@ This is a **successful learning and engineering mini-project with a modest posit
 
 ## Randomized follow-up and comparison
 
-The follow-up changes how records are allocated to training, development and final evaluation, and how the training-only logistic diagnostic is cross-validated. It is an **exploratory comparison on the already-used source dataset**, not a new independent final test. Its evidence is the saved execution output in [`analysisRandom.ipynb`](analysisRandom.ipynb); the repository's existing result-file links continue to describe the original experiment.
+The follow-up changes how records are allocated to training, development and final evaluation, and how the training-only logistic diagnostic is cross-validated. It is an **exploratory comparison on the already-used source dataset**, not a new independent final test. Its evidence is the saved execution output in [`analysisRandom.ipynb`](analysisRandom.ipynb) and the separate [`data_Random/`](data_Random/) / [`results_Random/`](results_Random/) artifacts. Links under `results/` continue to describe the original experiment.
 
 ### What changed and what stayed the same?
 
@@ -545,6 +569,10 @@ The randomized forest's development/final results were relatively close: **38.74
 
 Validation AP changed little between the middle and largest sizes for this fixed logistic configuration. This does not show that additional data cannot help the forest or that the project has reached its maximum possible performance. These are three folds, and their standard deviation is not a confidence interval. The largest learning-curve size is 19,220 for all folds; two separate full CV fits use 19,221 training records, so their aggregate AP need not match the full-size learning-curve mean exactly.
 
+![Randomized K-fold learning curve for lr_c1](results_Random/figures/kfold_learning_curve.png)
+
+See the randomized [`fold_diagnostics.csv`](results_Random/fold_diagnostics.csv), [`learning_sizes.csv`](results_Random/learning_sizes.csv) and [`learning_curve.csv`](results_Random/learning_curve.csv).
+
 **Probability quality.** The randomized forest's development mean estimated probability was **11.27%**, close to the observed **11.30%**, versus **6.15% predicted / 10.65% observed** in the original development cohort. Mean agreement can hide bin-level errors:
 
 | Randomized development probability bin | Records | Mean prediction | Observed subscription rate |
@@ -555,6 +583,10 @@ Validation AP changed little between the middle and largest sizes for this fixed
 | Above 0.6 to 0.8 | 79 | 65.23% | 74.68% |
 
 The remaining bin above 0.8 was empty. Higher populated bins still underpredicted the observed rate, and their samples were smaller. These are development diagnostics, not a claim of calibrated individual probabilities or a final-cohort calibration analysis.
+
+![Randomized development calibration of the selected forest](results_Random/figures/development_calibration.png)
+
+The underlying bin counts and rates are in randomized [`calibration_bins.csv`](results_Random/calibration_bins.csv).
 
 **Predictive signals and errors.** Development permutation importance was largest for `poutcome` (mean AP decrease **0.14290**), followed by `age` (**0.03224**) and `previous` (**0.03051**). All **219** previous-campaign-success records were shortlisted, containing **141 of the 239** selected development positives, approximately **59.00%**. This concentration motivates a simple previous-outcome business-rule benchmark at the same capacity; it does not prove a causal effect or that a rule would outperform the model. Small negative importance estimates for `housing`/`loan` do not alone justify removing them. Sparse subgroup summaries and individual error examples do not establish fairness.
 
@@ -580,18 +612,30 @@ A stronger claim about future-campaign performance would need a justified earlie
 | Selected run | `78067bd3981645908298e113c80e22fd` |
 | Returned model URI | `models:/m-23831d16c8484a8d911094e9d5526d68` |
 | Source checksum | Same SHA-256 documented in [data and input contract](#data-and-input-contract). |
-| Public evidence | Executed outputs retained in `analysisRandom.ipynb` and the tables above. |
+| Public evidence | Executed `analysisRandom.ipynb` outputs, `data_Random/`, `results_Random/`, and the tables above. |
 
-The randomized runs used the same external local tracking state directory as the original, with a different experiment name. The two run/model identities distinguish the saved predictors; neither identifier downloads a model from GitHub. The external database/model artifacts and randomized selection/result CSVs or JSONs are not part of this notebook-only publication. Existing links such as `results/final_result.json` and `results/selection.json` refer to the original chronological artifacts, not this follow-up.
+The randomized runs used the same external local tracking state directory as the original, with a different experiment name. The two run/model identities distinguish the saved predictors; neither identifier downloads a model from GitHub. Randomized selection and result metadata are published, but the external database and fitted-model artifacts are not. Existing links such as `results/final_result.json` and `results/selection.json` refer to the original chronological artifacts, not this follow-up.
+
+| Randomized evidence | Published files |
+| --- | --- |
+| Source and shuffled membership | [`raw CSV`](data_Random/raw/bank-additional-full.csv), [`split IDs`](data_Random/split_ids.csv), [`label-free demo`](data_Random/demo_customers.csv), [`final features`](data_Random/holdout/final_features.csv), [`final labels`](data_Random/holdout/final_labels.csv). These labels are already known. |
+| Candidate comparison and fixed decision | [`comparison.csv`](results_Random/comparison.csv), [`selection_candidates.csv`](results_Random/selection_candidates.csv), [`selection.json`](results_Random/selection.json). |
+| Final evaluation | [`final_access.json`](results_Random/final_access.json), [`final_result.json`](results_Random/final_result.json). |
+| Logistic diagnostics | [`fold_diagnostics.csv`](results_Random/fold_diagnostics.csv), [`learning_sizes.csv`](results_Random/learning_sizes.csv), [`learning_curve.csv`](results_Random/learning_curve.csv), [`K-fold learning curve`](results_Random/figures/kfold_learning_curve.png). |
+| Forest inspection | [`train_dev_ap.csv`](results_Random/train_dev_ap.csv), [`calibration_bins.csv`](results_Random/calibration_bins.csv), [`permutation_importance.csv`](results_Random/permutation_importance.csv), [`development_groups.csv`](results_Random/development_groups.csv), [`dev_inspection.csv`](results_Random/dev_inspection.csv), [`error_examples.csv`](results_Random/error_examples.csv). |
+| Saved-model predictions | [`demo_ranked.csv`](results_Random/demo_ranked.csv). |
+| Relocation provenance | [`artifact_relocation.json`](results_Random/artifact_relocation.json). |
+
+The final-access and final-result JSONs preserve the original execution records byte for byte. Their historical source/manifest path strings can still name `data/`; those strings describe where the randomized execution originally read/wrote its files, not the restored chronological files now published there. [`artifact_relocation.json`](results_Random/artifact_relocation.json) records the old-to-new artifact mapping and content hashes. The current notebook uses the isolated random directories. Moving the evidence changes its published location, not the saved model, split membership, results or evaluation history; it does not rerun the experiment or migrate the MLflow store.
 
 ### Reading and reproducing the randomized notebook
 
-1. **To understand the study:** read `analysisRandom.ipynb` with its saved executed outputs and the tables above. The notebook is a completed study record; random CSVs and figures are not supplied as separate repository files.
-2. **To keep the original evidence intact:** publish the second notebook under its separate filename and leave the original `analysis.ipynb`, `data/` and `results/` artifacts unchanged. Renaming the second notebook does not change its internal paths or its runtime `selection.json` dependency.
-3. **To repeat the workflow for learning:** use a separate working directory/copy, deliberately isolate generated data/results and tracking state, and keep final activation disabled while checking non-final work. A different MLflow experiment name alone does not isolate CSVs or final-access markers. Preserve the completed attempts and their markers; do not delete them to make a rerun appear unseen. These setup changes are prerequisites for a reproduction, not modifications delivered by this README update.
-4. **To reproduce a prediction:** use the corresponding selection metadata and compatible external MLflow store/model. The repository's default CLI selection remains the original published one; it does not automatically load the randomized model. Without the omitted randomized artifacts/state, a clean clone can inspect the notebook outputs but cannot immediately resume its saved runtime or reproduce that model's predictions.
+1. **To understand the study:** read `analysisRandom.ipynb` with its saved executed outputs, the tables above and the separate random CSVs/JSONs/figures. The notebook is a completed study record. Some saved outputs contain historical pre-relocation paths; the relocation record explains their mapping.
+2. **To keep the original evidence intact:** use `data_Random/` and `results_Random/` for all randomized notebook artifacts. Its early completed-record guard stops normal execution before tracking/writes when randomized final records already exist. The saved final activation is `RUN_FINAL = False`; original `analysis.ipynb`, `data/` and `results/` retain the original experiment.
+3. **To repeat the workflow for learning:** preserve this completed attempt, use a separate working copy/output location and separate tracking state, and keep final activation disabled while checking non-final work. Do not delete completed markers or bypass the guard in this evidence checkout. A different experiment name alone does not isolate files. Reusing these known labels is a reproduction exercise, not a new independent final evaluation.
+4. **To reproduce a prediction:** use `--selection results_Random/selection.json` with the randomized demo and a compatible external MLflow store/model, as shown below. The repository's default CLI selection remains `results/selection.json` for the original model. A clean clone can inspect both experiments' published evidence, but cannot reproduce saved-model predictions until the corresponding external tracking/model state has been restored or deliberately migrated and verified.
 
-The randomized saved outputs and local records were reviewed for split sizes, candidate selection, metric arithmetic and recorded identities. This documentation update does not rerun the notebook, retrain candidates, independently rescore final labels, add missing artifacts or certify execution from a clean clone. The recorded final AP/Brier/log loss remain the experiment's saved values.
+The randomized saved outputs and local records were reviewed for split sizes, candidate selection, metric arithmetic and recorded identities. Artifact relocation preserves the recorded evidence; the saved outputs were not regenerated. No full-notebook rerun, candidate retraining or independent final-label rescoring is claimed. The recorded final AP/Brier/log loss remain the experiment's saved values.
 
 ## Run predictions
 
@@ -605,6 +649,14 @@ uv run --locked python predict.py data/demo_customers.csv results/demo_ranked.cs
 ```
 
 The supplied demo has **20 development records**, so its independent batch budget is **2**, not the full development budget of 617. It contains no `y` column. The command writes/replaces the specified output CSV; use a different output path if preserving an earlier prediction file.
+
+To use the **randomized model**, explicitly select its metadata and label-free demo. Write to a new filename to preserve the recorded prediction evidence:
+
+```powershell
+uv run --locked python predict.py data_Random/demo_customers.csv results_Random/demo_ranked_recheck.csv --selection results_Random/selection.json
+```
+
+Compare that output with [`results_Random/demo_ranked.csv`](results_Random/demo_ranked.csv) by ID, numerical probability tolerance and exact rank/selection. This command still requires the randomized model's external MLflow state; publishing its CSVs and selection JSON does not embed the fitted pipeline. Passing the original demo with the randomized selection is possible as inference, but would not reproduce either recorded twenty-row check.
 
 For another file:
 
@@ -719,7 +771,13 @@ Read the saved notebook outputs and result files, run the synthetic/integration 
 Get-Content .\results\final_result.json -Raw
 ```
 
-The notebook's E–H/J guards protect the fixed decision after final access. They are not an early guard around every setup/splitting cell: running the entire notebook can still execute earlier work before a later guard stops it. The saved activation cell also needs conscious handling. Do not treat the current notebook as a fresh Run All entry point.
+The original chronological notebook's E–H/J guards protect the fixed decision after final access. They are not an early guard around every setup/splitting cell: running that entire notebook can still execute earlier work before a later guard stops it. Its saved activation cell also needs conscious handling. Do not treat the original notebook as a fresh Run All entry point.
+
+The randomized companion adds an earlier guard: its first code cell checks `results_Random/` for completed final records before configuring MLflow or writing outputs, and its saved `RUN_FINAL` setting is false. This guard is intentional for the completed study. Reading the saved randomized report does not require notebook execution:
+
+```powershell
+Get-Content .\results_Random\final_result.json -Raw
+```
 
 If repeating the training workflow for study, preserve this completed attempt and use a separate working copy and separate tracking state. Keep deliberate final activation disabled. Rerunning on these already-known labels is a reproduction exercise, not a new independent final evaluation. A new model-development experiment needs a genuinely new untouched evaluation cohort for an unbiased final claim.
 
@@ -737,8 +795,8 @@ If only MLflow metric logging needs a retry, read the already-saved result and l
 | --- | --- |
 | `comparison.csv` | One row per attempted candidate, including counts, metrics, status and reasons. |
 | `selection_candidates.csv` / `selection.json` | Ordered eligible candidates / fixed runtime selection and policy. |
-| `fold_diagnostics.csv` | Forward-fold ID ranges, label counts, support status and logistic AP. |
-| `learning_sizes.csv` / `learning_curve.csv` | Prefix support records / resulting logistic learning-curve scores. |
+| `fold_diagnostics.csv` | Fold ID ranges, label counts, support status and logistic AP: forward folds in `results/`, shuffled K-folds in `results_Random/`. |
+| `learning_sizes.csv` / `learning_curve.csv` | Training-size support records / resulting logistic learning-curve scores for that experiment's validation design. |
 | `train_dev_ap.csv` | Successful learned candidates' train/development AP with cohort sizes and positive rates. |
 | `calibration_bins.csv` | Development prediction-bin counts and predicted/observed rates. |
 | `permutation_importance.csv` | Development AP decreases and repeat standard deviations by original feature. |
@@ -747,8 +805,9 @@ If only MLflow metric logging needs a retry, read the already-saved result and l
 | `demo_ranked.csv` | Saved twenty-row CLI/notebook agreement batch. |
 | `final_access.json` | Permanent record of the final-access start and fixed identities. |
 | `final_result.json` | Stored final counts/metrics, development reference, identities and limitations. |
+| `results_Random/artifact_relocation.json` | Old-to-new artifact locations and hashes, preserving historical execution provenance after publication-path changes. |
 
-The published repository retains the original source/split/demo/holdout CSVs and result files, including row-level development outputs. The randomized follow-up is published as a separate notebook with saved outputs; its regenerated files must not replace these original artifacts. `.gitignore` excludes only `.venv/`, `__pycache__/`, `.pytest_cache/` and `.ipynb_checkpoints/`; it does **not** hide datasets, labels or row-level predictions. The external tracking state is absent from the repository because of its location, not a repository ignore rule. Review what is included before sharing and retain dataset attribution.
+The published repository retains both experiments' source/split/demo/holdout CSVs and result files, including row-level development outputs and already-accessed final labels. Original evidence stays under `data/` and `results/`; the randomized companion's evidence stays under `data_Random/` and `results_Random/`. `.gitignore` excludes `.venv/`, `__pycache__/`, `.pytest_cache/` and `.ipynb_checkpoints/`; it does **not** hide datasets, labels or row-level predictions. The external tracking state is absent from the repository because of its location, not a repository ignore rule. Review what is included before sharing and retain dataset attribution.
 
 ## Verification
 
@@ -762,6 +821,10 @@ uv run --locked python -m pytest -q
 
 Recorded verification on **23 October 2026** confirmed the lock check and **62 passing tests** in **21.13 seconds**, with one MLflow/SQLAlchemy `SADeprecationWarning` about the deprecated `noload` strategy. The warning did not fail the checks and is not being presented as a project-code fix. Prediction and MLflow UI command-line options were also checked with `--help`.
 
+After separating the randomized artifacts on **23 October 2026**, `uv lock --check` and `uv sync --locked` passed, and the expanded suite reported **65 passing tests in 14.11 seconds**, with the same single dependency warning. Three new regression cases check that either randomized final marker stops the first code cell before tracking/writes, and that an original-experiment marker is not mistaken for a randomized marker.
+
+The relocation review also checked copied-file hashes, restored original records, preserved notebook outputs/execution counts, notebook syntax, isolated paths, README links and Git's byte-preservation rules. Both saved models reproduced their respective twenty-row demo probabilities, ranks and two selections through a fresh CLI process. These checks used temporary copies of the tracking database; the real MLflow database remained byte-identical. They did not retrain candidates or read/rescore final labels. The notebook's historical outputs were preserved, rather than regenerated after the path edits.
+
 Tests cover:
 
 - Feature/label/ID separation, missing and invalid inputs, preserved order, and fresh pipeline creation.
@@ -769,6 +832,7 @@ Tests cover:
 - Known-answer shortlist metrics, numeric-ID ties, unrounded-score ordering, shuffled label-table order, invalid scores, zero budgets/positives and strict JSON.
 - Positive-class extraction for actual sklearn pipeline candidates.
 - One isolated MLflow native-model save/load round trip and fresh-process CLI agreement, plus missing tracking-state and feature-list mismatch cases.
+- Randomized notebook entry guards for both completed-record files, no tracking/artifact writes on refusal, and separation from original-experiment markers.
 
 Integration fixtures fit **synthetic** models and use pytest temporary SQLite/artifact storage. They end temporary runs and restore tracking configuration; they do not download the dataset, train new real-data candidates or read real final labels.
 
@@ -816,4 +880,4 @@ These are not guaranteed fixes or unfinished requirements for this mini-project.
 - **Tracking and persistence:** [MLflow tracking quickstart](https://mlflow.org/docs/latest/ml/tracking/quickstart/).
 - **Data and numerical work:** [pandas documentation](https://pandas.pydata.org/docs/), [NumPy documentation](https://numpy.org/doc/) and [Matplotlib documentation](https://matplotlib.org/stable/).
 
-This README distinguishes two completed historical experiments. Exact original chronological records remain in the published `results/`; randomized evidence is retained in the executed outputs of `analysisRandom.ipynb` and summarized here because its separate data/results artifacts are not published. Rounded tables are for readability, and neither result is a prospective campaign guarantee.
+This README distinguishes two completed historical experiments. Original chronological records remain in `analysis.ipynb`, `data/` and `results/`; randomized records are published separately in `analysisRandom.ipynb`, `data_Random/` and `results_Random/`, with relocation provenance retained. Rounded tables are for readability, and neither result is a prospective campaign guarantee.

@@ -1,0 +1,21 @@
+{
+  "candidate_id": "rf_d8",
+  "run_id": "52134ede72804e84bcdbc3b8f9e9b641",
+  "model_uri": "models:/m-3cae2dcb9a094a849a292dc315bbde32",
+  "state_dir": "C:\\Users\\KISHAN PRAJAPATI\\AppData\\Local\\campaign-mini-state",
+  "features": [
+    "age",
+    "previous",
+    "job",
+    "marital",
+    "education",
+    "housing",
+    "loan",
+    "poutcome"
+  ],
+  "policy": {
+    "budget_numerator": 1,
+    "budget_denominator": 10,
+    "tie_break": "record_id_ascending"
+  }
+}
