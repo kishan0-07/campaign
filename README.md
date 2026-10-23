@@ -18,17 +18,28 @@
 [![uv 0.11.26](https://img.shields.io/badge/uv-0.11.26-DE5FE9?logo=uv&logoColor=white)](https://docs.astral.sh/uv/)
 [![pytest 9.1.1](https://img.shields.io/badge/pytest-9.1.1-0A9EDC?logo=pytest&logoColor=white)](https://docs.pytest.org/)
 
-**Project status:** Completed offline learning mini-project · [fixed final evaluation recorded](#final-evaluation-of-the-fixed-forest) · [saved-model CLI verified](#verification)
+**Project status:** Completed offline learning mini-project · [original chronological results](#final-evaluation-of-the-fixed-forest) · [randomized follow-up and comparison](#randomized-follow-up-and-comparison) · [saved-model CLI verified](#verification)
 
-[Setup](#environment-and-installation) · [Run predictions](#run-predictions) · [Architecture](#architecture-and-project-files) · [Results and findings](#recorded-results-and-interpretation) · [MLflow and saved model](#mlflow-tracking-and-saved-model) · [Verification](#verification)
+[Setup](#environment-and-installation) · [Run predictions](#run-predictions) · [Architecture](#architecture-and-project-files) · [Original results](#recorded-results-and-interpretation) · [Randomized comparison](#randomized-follow-up-and-comparison) · [MLflow and saved model](#mlflow-tracking-and-saved-model) · [Verification](#verification)
 
 </div>
 
-A Python machine-learning mini-project that ranks bank-marketing records by estimated subscription probability and selects the highest-ranked **10% of each submitted batch**. It demonstrates data validation, leakage-aware preprocessing, model comparison, ordered validation, experiment tracking, model persistence and prediction from a separate command-line process.
+A Python machine-learning mini-project that ranks bank-marketing records by estimated subscription probability and selects the highest-ranked **10% of each submitted batch**. It demonstrates data validation, leakage-aware preprocessing, model comparison, ordered and shuffled validation, experiment tracking, model persistence and prediction from a separate command-line process.
 
-**Recorded outcome:** the selected random forest found **291 historical subscribers among 617 selected records** in the final cohort: **47.16% precision**, **12.25% recall** and **1.23 lift**. A uniformly random shortlist of the same size would contain **237.25 subscribers on average** in that cohort. The model's shortlist therefore contained **22.65% more historical subscribers than the random expectation—about 23% more**, at the same contact budget. This supports a modest historical ranking benefit; it does not establish additional subscriptions caused by calling, profitability or production readiness.
+**Original chronological outcome:** the selected random forest found **291 historical subscribers among 617 selected records** in the final cohort: **47.16% precision**, **12.25% recall** and **1.23 lift**. A uniformly random shortlist of the same size would contain **237.25 subscribers on average** in that cohort. The model's shortlist therefore contained **22.65% more historical subscribers than the random expectation—about 23% more**, at the same contact budget. This supports a modest historical ranking benefit; it does not establish additional subscriptions caused by calling, profitability or production readiness.
 
-> **This experiment is complete.** Final labels have already been accessed, and `results/final_access.json` and `results/final_result.json` exist. Preserve those records and the selected model. Use the saved-model CLI and tests for normal reuse; **do not use Run All on the completed notebook** or delete the records to repeat model selection. The notebook still contains a deliberate `RUN_FINAL = True` activation cell, although the final-evaluation code resets the runtime flag afterward.
+**Randomized follow-up outcome:** the same forest configuration, fitted on a new shuffled training partition, found **245 subscribers among 617 selections**: **39.71% precision**, **35.46% recall** and **3.55 lift**, versus **69.00 subscribers expected from random selection** in that cohort. The forest won both development comparisons. These are different training and evaluation records: **random splitting does not establish better future-campaign performance**. The [comparison below](#randomized-follow-up-and-comparison) explains what the two experiments support.
+
+### Which notebook and artifacts describe which experiment?
+
+| Experiment | Notebook | Published supporting files | Evaluation question |
+| --- | --- | --- | --- |
+| Original chronological experiment | [`analysis.ipynb`](analysis.ipynb) | The repository's `data/`, `results/` and linked figures below. | How does a model trained on earlier source records rank a later historical cohort? |
+| Randomized follow-up | [`analysisRandom.ipynb`](analysisRandom.ipynb) | Saved notebook outputs and the comparison tables in this README. Its regenerated `data/` and `results/` are not being published. | How does the same candidate set behave when training and held-out records are sampled from the same mixed historical dataset? |
+
+**Publication scope:** `analysisRandom.ipynb` is the companion filename to add alongside the unchanged original notebook. This README-only update does not create or rename it. Preserve its executed outputs when adding it. Unless explicitly labeled randomized, the setup, architecture, result-file links, CLI selection and MLflow identity documented below refer to the **original chronological experiment**. No separate randomized CSVs, figures or MLflow state are included in this publication.
+
+> **Both evaluations are complete.** Final labels have already been accessed. Preserve each attempt's recorded decision and final-access evidence; do not delete markers to repeat selection. **Read the saved notebook outputs rather than using Run All.** The randomized notebook still writes to the same `data/` and `results/` paths and contains a deliberate `RUN_FINAL = True` activation cell, despite resetting that flag at runtime afterward. Renaming a notebook does not isolate its side effects: early cells can overwrite original files before a later guard stops execution. See [reading and reproducing the randomized notebook](#reading-and-reproducing-the-randomized-notebook).
 
 ## Contents
 
@@ -39,7 +50,8 @@ A Python machine-learning mini-project that ranks bank-marketing records by esti
 - [Split and leakage boundaries](#split-and-leakage-boundaries)
 - [Models and selection](#models-and-selection)
 - [Metrics](#metrics)
-- [Recorded results and interpretation](#recorded-results-and-interpretation)
+- [Original results and interpretation](#recorded-results-and-interpretation)
+- [Randomized follow-up and comparison](#randomized-follow-up-and-comparison)
 - [Run predictions](#run-predictions)
 - [MLflow tracking and saved model](#mlflow-tracking-and-saved-model)
 - [Experiment workflow and reproduction](#experiment-workflow-and-reproduction)
@@ -70,9 +82,9 @@ There are no invented contact costs or revenues. This is an observational predic
 
 ## Architecture and project files
 
-The notebook coordinates the experiment. Small shared modules implement the input contract, sklearn pipeline factory, ranking policy and saved-model loading. Training uses standard sklearn APIs rather than a custom estimator or training framework.
+The original notebook coordinates the chronological experiment shown here; the randomized notebook reuses the same modules with a different split/validation protocol. Small shared modules implement the input contract, sklearn pipeline factory, ranking policy and saved-model loading. Training uses standard sklearn APIs rather than a custom estimator or training framework.
 
-### Experiment and model persistence
+### Original experiment and model persistence
 
 ```mermaid
 flowchart TD
@@ -118,7 +130,8 @@ The CLI reuses the existing model and ranks the entire submitted batch. It never
 
 ```text
 campaign-mini/
-├── analysis.ipynb                 # A–J experiment and saved outputs
+├── analysis.ipynb                 # Original chronological A–J experiment and saved outputs
+├── analysisRandom.ipynb           # Randomized follow-up; publish saved outputs separately
 ├── helpers.py                    # Input preparation, pipelines, scores and metrics
 ├── tracking.py                   # Tracking configuration and selected-model loading
 ├── predict.py                    # Saved-model batch prediction CLI
@@ -159,6 +172,8 @@ campaign-mini/
         ├── ordered_learning_curve.png
         └── development_calibration.png
 ```
+
+The listed `data/`, `results/` and figure files describe the original experiment. Randomized follow-up artifacts are not added to those published directories; its numerical evidence is retained in the second notebook and summarized below.
 
 MLflow state is stored **outside the repository**. The database holds experiment/run metadata; the artifact directory holds saved files, including the model. This SQLite database is for experiment tracking, not an application customer database.
 
@@ -282,7 +297,7 @@ The separate final-label table already contains binary `0`/`1` values. It is joi
 
 ## Split and leakage boundaries
 
-The experiment uses contiguous source-row partitions, without shuffling or stratification. Boundaries are `7 * n // 10` and `85 * n // 100`.
+The **original chronological experiment** uses contiguous source-row partitions, without shuffling or stratification. Boundaries are `7 * n // 10` and `85 * n // 100`.
 
 | Partition | Inclusive record IDs | Records | Subscribers | Subscription rate |
 | --- | --- | ---: | ---: | ---: |
@@ -299,7 +314,7 @@ The final counts/rate are disclosed here because evaluation is complete. They we
 - Imputation, scaling and category discovery are fitted inside each sklearn pipeline on its training records only. No independent dummy-column creation is performed on held-out partitions.
 - The selected pipeline is the existing train-fitted object. Saving it does not refit it on train plus development.
 
-Ordered evaluation is more appropriate here than randomly mixing earlier and later records. However, source order is not a complete timestamp or customer-identity system: exact intervals, repeat-customer overlap and full prediction-time availability remain unverified. Matching feature profiles alone do not prove duplicate customers.
+For the question of training on earlier records and evaluating on later historical records, ordered evaluation preserves that direction. The randomized follow-up answers a different, mixed-population question; it does not replace this temporal check. However, source order is not a complete timestamp or customer-identity system: exact intervals, repeat-customer overlap and full prediction-time availability remain unverified. Matching feature profiles alone do not prove duplicate customers.
 
 Separating files and using an access marker are procedural safeguards. The raw source still contains all labels; this is not a security boundary that can prove nobody ever inspected them.
 
@@ -327,7 +342,7 @@ Among successful candidates with defined required metrics, selection sorts by:
 3. Declared family order: prior, logistic regression, random forest.
 4. Candidate ID, ascending.
 
-The existing fitted `rf_d8` won. Selection details are in [`selection_candidates.csv`](results/selection_candidates.csv) and [`selection.json`](results/selection.json). Setup-check runs are excluded from candidate comparison.
+The existing fitted `rf_d8` won the original comparison; the same candidate configuration also won the randomized follow-up. These are separately fitted pipelines, not one model evaluated twice. Original selection details are in [`selection_candidates.csv`](results/selection_candidates.csv) and [`selection.json`](results/selection.json). Setup-check runs are excluded from candidate comparison.
 
 ## Metrics
 
@@ -358,6 +373,8 @@ These are conditional expectations, not a random model run, confidence intervals
 Zero-budget precision/lift and zero-positive recall/lift/AP are represented by `null` with reasons, rather than invented zeros. Empty evaluation is an error; a header-only prediction batch is supported. Exported JSON rejects NaN and infinity with `allow_nan=False`.
 
 ## Recorded results and interpretation
+
+**Original chronological experiment:** all tables, linked CSVs and figures in this section describe the original ordered split. The randomized follow-up has its own [comparison section](#randomized-follow-up-and-comparison).
 
 ### Development comparison
 
@@ -442,6 +459,140 @@ This is a **successful learning and engineering mini-project with a modest posit
 
 **The original mini-project scope is complete.** Further model tuning is not required to finish it. The limitations describe the boundaries of the evidence; the follow-up experiments below are optional extensions that would strengthen a future study.
 
+## Randomized follow-up and comparison
+
+The follow-up changes how records are allocated to training, development and final evaluation, and how the training-only logistic diagnostic is cross-validated. It is an **exploratory comparison on the already-used source dataset**, not a new independent final test. Its evidence is the saved execution output in [`analysisRandom.ipynb`](analysisRandom.ipynb); the repository's existing result-file links continue to describe the original experiment.
+
+### What changed and what stayed the same?
+
+| Component | Original chronological experiment | Randomized follow-up |
+| --- | --- | --- |
+| Outer train/development/final split | Consecutive source-order partitions. | Two `train_test_split` calls with `shuffle=True`, `random_state=42`, and no `stratify` argument. |
+| First shuffled split | Not used. | Select exactly 28,831 training records from all 41,188 records; leave 12,357 records. |
+| Second shuffled split | Not used. | Select exactly 6,178 development records from those remaining records; leave 6,179 final records, again using seed 42. |
+| Stage F diagnostic | `TimeSeriesSplit(n_splits=3)`. | `KFold(n_splits=3, shuffle=True, random_state=42)`. |
+| Stage F estimator | Fixed `lr_c1` only. | Fixed `lr_c1` only. |
+| Input data and features | Same source checksum and eight permitted features. | Unchanged. |
+| Candidates and settings | Prior, two logistic regressions and the constrained forest listed above. | Unchanged; the forest settings were not tuned for this follow-up. |
+| Selection and capacity | Development precision, then AP and declared tie-breakers; `floor(n/10)` contacts. | Unchanged. |
+| Fit boundary | Fit each candidate on its training partition only; save the chosen fitted object without train-plus-development refitting. | Same rule, applied to the randomized training partition. |
+
+The partitions remain disjoint within each experiment. Shuffled K-fold fits independent logistic-pipeline clones inside the randomized **training partition**; it does not include development/final records, tune the candidates or improve the forest automatically. The outer development comparison still chooses the winner, and final evaluation still uses that fixed selection.
+
+### Why the evaluation populations differ
+
+| Partition | Records in each experiment | Original subscribers / rate | Randomized subscribers / rate |
+| --- | ---: | ---: | ---: |
+| Training | 28,831 | 1,606 / 5.57% | 3,251 / 11.28% |
+| Development | 6,178 | 658 / 10.65% | 698 / 11.30% |
+| Final | 6,179 | 2,376 / 38.45% | 691 / 11.18% |
+
+Randomization mixes earlier and later source records into each partition, giving these partitions similar historical subscription rates. This is not evidence that real future campaigns have stable populations. The original forest was trained on a 5.57%-positive earlier cohort and faced a 38.45%-positive later cohort; the randomized forest was trained on a much more similar mixture to its held-out records.
+
+Consequently, this comparison changes **both the fitted model's training data and the evaluation population**. It does not isolate the effect of K-fold versus forward CV, or demonstrate a performance improvement on one unchanged test set. The original split also has a substantial population change; order alone does not provide complete timestamps, customer isolation or a causal explanation for that change.
+
+### Randomized development: which candidate won?
+
+All four attempts succeeded on **6,178 records**, with **698 subscribers** and **617 selections**.
+
+| Candidate | Selected positives | Precision | Recall | Lift | AP | Brier ↓ | Log loss ↓ |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `prior` | 22 | 3.57% | 3.15% | 0.316 | 0.11298 | 0.10022 | 0.35270 |
+| `lr_c1` | 235 | 38.09% | 33.67% | 3.371 | 0.33086 | 0.08802 | 0.31429 |
+| `lr_c01` | 237 | 38.41% | 33.95% | 3.400 | 0.33187 | 0.08800 | 0.31420 |
+| **`rf_d8`** | **239** | **38.74%** | **34.24%** | **3.429** | **0.35316** | **0.08681** | **0.30983** |
+
+The forest had the highest development precision, recall, lift and AP and the lowest probability losses among these four candidates. It won under the declared selection rule. Its primary-metric advantage over the best logistic candidate was **two selected positives**, or approximately **0.32 percentage points of precision**; that is an observed lead, not a demonstrated statistically significant advantage or proof that forests always win. Both logistic candidates also showed substantial ranking signal.
+
+The correct uniform-random reference here is **69.71 expected selected positives**, **11.30% precision** and lift `1`. The prior candidate's **22** positives come from tied probabilities resolved by original numeric record ID, producing a deterministic early-ID shortlist. **Do not use 22 as the random-selection expectation.**
+
+### Final results side by side
+
+Each column uses its own development-selected, train-fitted forest. The randomized evaluation was recorded at **2026-10-23 10:53:00 UTC** / **23 October 2026, 16:23:00 IST**.
+
+| Final-cohort quantity | Original chronological | Randomized follow-up |
+| --- | ---: | ---: |
+| Records / selections | 6,179 / 617 | 6,179 / 617 |
+| Historical subscribers / cohort rate | 2,376 / 38.4528% | 691 / 11.1830% |
+| True positives / false positives | 291 / 326 | 245 / 372 |
+| False negatives / true negatives | 2,085 / 3,477 | 446 / 5,116 |
+| Precision at budget | 47.1637% | 39.7083% |
+| Recall at budget | 12.2475% | 35.4559% |
+| Lift over its own cohort rate | 1.2265 | 3.5508 |
+| Average precision | 0.46754 | 0.35805 |
+| Brier score ↓ | 0.31642 | 0.08597 |
+| Log loss ↓ | 0.98500 | 0.30754 |
+| Uniform-random expected positives | 237.25 | 69.00 |
+| Captured positives above random expectation | 53.75 | 176.00 |
+| Relative enrichment over random expectation | 22.65% | 255.08% |
+| Precision advantage over cohort rate | 8.71 percentage points | 28.53 percentage points |
+
+For the randomized cohort, **245 versus 68.9994 expected positives** means **3.55 times the random expectation**, or **255.08% more historical subscribers captured** at the same capacity. This is approximately 176 more than the expected count, not 176 subscriptions caused by a campaign. It is not 355% more, and it is not a 255-percentage-point precision increase.
+
+The original cohort has higher raw precision and AP, but also a much higher underlying positive rate. Its higher raw scores do not establish the better model. The randomized cohort has stronger observed enrichment relative to its own reference and smaller probability losses, but those results do not establish better later-campaign generalization. Changes in prevalence, available training histories and cohort composition affect these metrics; lower Brier/log loss is not isolated evidence that calibration was fixed.
+
+The randomized forest's development/final results were relatively close: **38.74% / 39.71% precision**, **3.43 / 3.55 lift** and **0.35316 / 0.35805 AP**. This supports consistent observed ranking on those two mixed historical partitions. It is one seeded follow-up, not a stability guarantee across seeds, campaigns or unseen future populations.
+
+### What the randomized diagnostics show
+
+**Training-only K-fold and learning curve — logistic regression, not the forest.** All three folds were supported. Validation AP was **0.30218**, **0.32517** and **0.34204**, giving mean **0.32313** and fold standard deviation **0.01634**. Validation positive rates were approximately **11.42%**, **11.18%** and **11.23%**. AP therefore exceeded each fold's constant-score reference.
+
+| Training records per learning-curve fit | Mean training AP | Mean validation AP | Validation fold standard deviation |
+| --- | ---: | ---: | ---: |
+| 5,766 | 0.33487 | 0.32078 | 0.01658 |
+| 11,532 | 0.34673 | 0.32324 | 0.01615 |
+| 19,220 | 0.32585 | 0.32322 | 0.01640 |
+
+Validation AP changed little between the middle and largest sizes for this fixed logistic configuration. This does not show that additional data cannot help the forest or that the project has reached its maximum possible performance. These are three folds, and their standard deviation is not a confidence interval. The largest learning-curve size is 19,220 for all folds; two separate full CV fits use 19,221 training records, so their aggregate AP need not match the full-size learning-curve mean exactly.
+
+**Probability quality.** The randomized forest's development mean estimated probability was **11.27%**, close to the observed **11.30%**, versus **6.15% predicted / 10.65% observed** in the original development cohort. Mean agreement can hide bin-level errors:
+
+| Randomized development probability bin | Records | Mean prediction | Observed subscription rate |
+| --- | ---: | ---: | ---: |
+| Up to 0.2 | 5,751 | 8.90% | 8.43% |
+| Above 0.2 to 0.4 | 216 | 28.28% | 35.19% |
+| Above 0.4 to 0.6 | 132 | 54.33% | 59.09% |
+| Above 0.6 to 0.8 | 79 | 65.23% | 74.68% |
+
+The remaining bin above 0.8 was empty. Higher populated bins still underpredicted the observed rate, and their samples were smaller. These are development diagnostics, not a claim of calibrated individual probabilities or a final-cohort calibration analysis.
+
+**Predictive signals and errors.** Development permutation importance was largest for `poutcome` (mean AP decrease **0.14290**), followed by `age` (**0.03224**) and `previous` (**0.03051**). All **219** previous-campaign-success records were shortlisted, containing **141 of the 239** selected development positives, approximately **59.00%**. This concentration motivates a simple previous-outcome business-rule benchmark at the same capacity; it does not prove a causal effect or that a rule would outperform the model. Small negative importance estimates for `housing`/`loan` do not alone justify removing them. Sparse subgroup summaries and individual error examples do not establish fairness.
+
+The forest's training AP was **0.37339**, versus development AP **0.35316**. This is a modest observed gap under the mixed split; it does not prove the absence of overfitting, repeated-customer dependence or temporal weaknesses.
+
+### What conclusion is justified?
+
+- **Within each declared candidate comparison:** `rf_d8` won on development under the same fixed-budget policy. Its settings were the same, but it was fitted separately on different training records.
+- **Within the randomized evaluation cohort:** the selected forest showed strong observed historical ranking enrichment, with 245 captured positives versus about 69 expected from random selection.
+- **For the original later historical cohort:** the selected forest retained a modest advantage, but lift weakened and probability errors grew as cohort composition changed.
+- **For future campaigns:** neither the randomized result nor a higher lift on a different cohort establishes better future-campaign performance. The chronological experiment remains the more directly relevant test of earlier-to-later transfer, with its documented identity/timing limitations.
+
+The randomized follow-up is a useful learning comparison and evidence that split design changes the question and observed results. It does not supersede the original result or establish a universally better model. It also reuses a dataset whose final labels were already examined in the original study. For example, **4,317 original-final records now belong to randomized training**, and only **950 records** are shared by the two final partitions. This is an expected consequence of reshuffling, not overlap between the randomized train and final partitions. It means the follow-up cannot be called a fresh independent validation.
+
+A stronger claim about future-campaign performance would need a justified earlier-to-later backtest of the forest with precision/lift/AP and then a genuinely untouched later cohort. Hyperparameter changes, additional random seeds or calibration remain hypotheses for a separate study, not requirements for completing this learning project.
+
+### Randomized tracking identity and evidence
+
+| Item | Randomized follow-up value |
+| --- | --- |
+| MLflow experiment | `campaign-mini-random` |
+| Selected candidate | `rf_d8` |
+| Selected run | `78067bd3981645908298e113c80e22fd` |
+| Returned model URI | `models:/m-23831d16c8484a8d911094e9d5526d68` |
+| Source checksum | Same SHA-256 documented in [data and input contract](#data-and-input-contract). |
+| Public evidence | Executed outputs retained in `analysisRandom.ipynb` and the tables above. |
+
+The randomized runs used the same external local tracking state directory as the original, with a different experiment name. The two run/model identities distinguish the saved predictors; neither identifier downloads a model from GitHub. The external database/model artifacts and randomized selection/result CSVs or JSONs are not part of this notebook-only publication. Existing links such as `results/final_result.json` and `results/selection.json` refer to the original chronological artifacts, not this follow-up.
+
+### Reading and reproducing the randomized notebook
+
+1. **To understand the study:** read `analysisRandom.ipynb` with its saved executed outputs and the tables above. The notebook is a completed study record; random CSVs and figures are not supplied as separate repository files.
+2. **To keep the original evidence intact:** publish the second notebook under its separate filename and leave the original `analysis.ipynb`, `data/` and `results/` artifacts unchanged. Renaming the second notebook does not change its internal paths or its runtime `selection.json` dependency.
+3. **To repeat the workflow for learning:** use a separate working directory/copy, deliberately isolate generated data/results and tracking state, and keep final activation disabled while checking non-final work. A different MLflow experiment name alone does not isolate CSVs or final-access markers. Preserve the completed attempts and their markers; do not delete them to make a rerun appear unseen. These setup changes are prerequisites for a reproduction, not modifications delivered by this README update.
+4. **To reproduce a prediction:** use the corresponding selection metadata and compatible external MLflow store/model. The repository's default CLI selection remains the original published one; it does not automatically load the randomized model. Without the omitted randomized artifacts/state, a clean clone can inspect the notebook outputs but cannot immediately resume its saved runtime or reproduce that model's predictions.
+
+The randomized saved outputs and local records were reviewed for split sizes, candidate selection, metric arithmetic and recorded identities. This documentation update does not rerun the notebook, retrain candidates, independently rescore final labels, add missing artifacts or certify execution from a clean clone. The recorded final AP/Brier/log loss remain the experiment's saved values.
+
 ## Run predictions
 
 ### Reuse the existing selected model
@@ -497,7 +648,7 @@ A header-only input with all required fields produces a header-only output, but 
 
 ## MLflow tracking and saved model
 
-### Current recorded identity
+### Original chronological recorded identity
 
 | Item | Value |
 | --- | --- |
@@ -543,7 +694,7 @@ Open [the local MLflow UI](http://127.0.0.1:5000), select `campaign-mini`, and i
 
 ## Experiment workflow and reproduction
 
-### A–J record of the implementation
+### A–J record of the original implementation
 
 | Stage | Work performed | Main evidence |
 | --- | --- | --- |
@@ -597,7 +748,7 @@ If only MLflow metric logging needs a retry, read the already-saved result and l
 | `final_access.json` | Permanent record of the final-access start and fixed identities. |
 | `final_result.json` | Stored final counts/metrics, development reference, identities and limitations. |
 
-The repository currently tracks the source/split/demo/holdout CSVs and result files, including row-level development outputs. `.gitignore` excludes only `.venv/`, `__pycache__/`, `.pytest_cache/` and `.ipynb_checkpoints/`; it does **not** hide datasets, labels or row-level predictions. The external tracking state is absent from the repository because of its location, not a repository ignore rule. Review what is included before sharing and retain dataset attribution.
+The published repository retains the original source/split/demo/holdout CSVs and result files, including row-level development outputs. The randomized follow-up is published as a separate notebook with saved outputs; its regenerated files must not replace these original artifacts. `.gitignore` excludes only `.venv/`, `__pycache__/`, `.pytest_cache/` and `.ipynb_checkpoints/`; it does **not** hide datasets, labels or row-level predictions. The external tracking state is absent from the repository because of its location, not a repository ignore rule. Review what is included before sharing and retain dataset attribution.
 
 ## Verification
 
@@ -629,7 +780,7 @@ The saved experiment also records an H/I check that notebook and CLI probabiliti
 2. **Population changes.** Positive rates differ sharply across ordered partitions, and final lift weakened. Exact causes cannot be identified from these aggregates alone.
 3. **Probability reliability.** Development underprediction and larger final probability errors limit interpretation of absolute scores. Lower Brier loss alone would not prove good calibration.
 4. **Identity and timing.** No verified customer-disjoint split or complete point-in-time feature audit is possible from the supplied row identity/time information. Repeated-customer dependence may remain.
-5. **Validation coverage.** Forward CV/learning curves diagnose logistic regression, not the selected forest. Four fixed candidates do not establish optimality.
+5. **Validation coverage.** Both the original forward diagnostics and randomized K-fold/learning curves diagnose logistic regression, not the selected forest. Four fixed candidates do not establish optimality. The randomized follow-up uses already-examined historical data and does not establish better future-campaign performance.
 6. **Uncertainty and fairness.** There is no justified dependence-aware confidence interval, and sparse subgroup summaries do not establish fairness. The error examples are illustrative.
 7. **Operational scope.** This is a local offline batch workflow. It has not been validated as a deployed multi-user service, with monitoring or a tested model-store migration.
 
@@ -665,4 +816,4 @@ These are not guaranteed fixes or unfinished requirements for this mini-project.
 - **Tracking and persistence:** [MLflow tracking quickstart](https://mlflow.org/docs/latest/ml/tracking/quickstart/).
 - **Data and numerical work:** [pandas documentation](https://pandas.pydata.org/docs/), [NumPy documentation](https://numpy.org/doc/) and [Matplotlib documentation](https://matplotlib.org/stable/).
 
-This README records the existing implementation and stored experiment evidence. Exact numerical records remain in `results/`; rounded tables here are for readability.
+This README distinguishes two completed historical experiments. Exact original chronological records remain in the published `results/`; randomized evidence is retained in the executed outputs of `analysisRandom.ipynb` and summarized here because its separate data/results artifacts are not published. Rounded tables are for readability, and neither result is a prospective campaign guarantee.
