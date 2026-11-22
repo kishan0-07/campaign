@@ -156,7 +156,7 @@ record_id,age,previous,job,marital,education,housing,loan,poutcome
 uv run --locked python predict.py customers.csv ranked_customers.csv --selection results/selection.json
 ```
 
-For randomized training, use `--selection results_Random/selection.json` instead. An untouched clone's historical selection points to the author's external state; it is not a downloadable model.
+For randomized training, use `--selection results_Random/selection.json` instead.An untouched clone's historical selection points to the author's external state; it is not a downloadable model.
 
 Output contains `record_id`, `estimated_probability`, `rank` and `selected`, ordered by unrounded probability descending, then numeric ID ascending. The budget is `floor(n/10)`: fewer than ten rows produce no selections. Submit the intended cohort as one batch. The CLI never trains or reads labels.
 
